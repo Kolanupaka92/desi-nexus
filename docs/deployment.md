@@ -22,6 +22,7 @@ In production the API exits rather than starting half-configured:
 | `DESI_NEXUS_WEBHOOK_SECRET` | Stripe webhook signature verification — the only thing trusted to say a payment succeeded. |
 | `DATABASE_URL` | Without it the in-memory store is used, and every booking is lost on restart. |
 | `REDIS_URL` | Without it rate limits are per-pod, which is to say not limits. |
+| `DATABASE_SYSTEM_URL` | Without it the Stripe webhook cannot record a capture: it has no user, and the policies have nobody to act as. |
 | `STRIPE_API_KEY` | Without it the fake gateway is used and bookings move no money. |
 | `GEOCODER_URL` | Without it venue addresses resolve through the fake, which invents plausible coordinates. |
 
@@ -45,6 +46,14 @@ psql "$PGURL" -f db/migrations/001_init.sql
 psql "$PGURL" -f db/migrations/002_seed_reference_data.sql
 psql "$PGURL" -f db/migrations/003_app_role.sql
 ```
+
+`004_rls_write_policies.sql` adds the write policies and creates a second role,
+`desi_nexus_system`, for the paths that belong to no user -- the Stripe webhook
+is authenticated by signature, not by session, and has to find an escrow by
+payment intent before it could know whose it is. That role is exempt from the
+row policies and nothing else: it still cannot delete a row or rewrite the
+ledger. Keeping it a separate login is the point, so a leaked application
+password does not carry the exemption with it.
 
 Then give `desi_nexus_app` a password and use **that** role in `DATABASE_URL`:
 
@@ -83,6 +92,7 @@ gcloud run deploy desi-nexus-api \
   --set-secrets DESI_NEXUS_TOKEN_SECRET=dn-token-secret:latest \
   --set-secrets DESI_NEXUS_WEBHOOK_SECRET=dn-webhook-secret:latest \
   --set-secrets DATABASE_URL=dn-database-url:latest \
+  --set-secrets DATABASE_SYSTEM_URL=dn-database-system-url:latest \
   --set-secrets REDIS_URL=dn-redis-url:latest \
   --set-env-vars GEOCODER_URL=https://geocoding.geo.census.gov/geocoder/locations/onelineaddress
 ```

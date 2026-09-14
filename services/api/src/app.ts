@@ -15,7 +15,7 @@ import { registerDiscoveryRoutes } from "./http/routes/discovery.js";
 import { InMemoryRateLimiter, type RateLimiter } from "./infra/rateLimit.js";
 import { RedisRateLimiter } from "./infra/redisRateLimit.js";
 import { createInMemoryStore, type Store } from "./infra/store.js";
-import { connect } from "./infra/postgres/db.js";
+import { connect, routed } from "./infra/postgres/db.js";
 import { createPostgresStore } from "./infra/postgres/store.js";
 import type { StripeGateway } from "./infra/stripe/index.js";
 import { FakeStripeGateway } from "./infra/stripe/fake.js";
@@ -86,12 +86,29 @@ function defaultStore(): Store {
     }
     return createInMemoryStore();
   }
-  const db = connect({
-    connectionString: url,
-    // Behind a transaction pooler (Supabase's 6543, PgBouncer) the server holds
-    // far fewer connections than clients think they have, so keep this modest.
-    max: Number(process.env.DATABASE_POOL_MAX ?? 10),
-  });
+  // Behind a transaction pooler (Supabase's 6543, PgBouncer) the server holds
+  // far fewer connections than clients think they have, so keep these modest.
+  const max = Number(process.env.DATABASE_POOL_MAX ?? 10);
+  const app = connect({ connectionString: url, max });
+
+  // The row-level security policies exempt one role, for the paths that belong
+  // to no user: the Stripe webhook and the auto-release sweep. It is a separate
+  // login on purpose, so a leaked application password does not carry the
+  // exemption. Without it those paths would be refused by the policies and the
+  // service would quietly stop recording captured payments -- so production
+  // refuses to start rather than discovering that on the first booking.
+  const systemUrl = process.env.DATABASE_SYSTEM_URL;
+  if (!systemUrl && process.env.NODE_ENV === "production") {
+    throw new Error(
+      "DATABASE_SYSTEM_URL is required in production: without it the Stripe webhook " +
+        "cannot record a capture, because row-level security has no user to act as",
+    );
+  }
+  const system = systemUrl
+    ? connect({ connectionString: systemUrl, max: Number(process.env.DATABASE_SYSTEM_POOL_MAX ?? 4) })
+    : undefined;
+
+  const db = routed(app, system);
   owned.push(() => db.close());
   return createPostgresStore(db);
 }
