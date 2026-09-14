@@ -43,10 +43,15 @@ DO $$
 DECLARE
     target text := current_schema();
 BEGIN
-    IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'desi_nexus_system') THEN
-        -- No password here, as in 003: it is issued and rotated out of band.
+    -- No password here, as in 003: it is issued and rotated out of band. And,
+    -- as in 003, created by catching the duplicate rather than checking first:
+    -- parallel test files apply these migrations concurrently, and
+    -- check-then-create loses that race intermittently.
+    BEGIN
         CREATE ROLE desi_nexus_system LOGIN;
-    END IF;
+    EXCEPTION WHEN duplicate_object THEN
+        NULL;
+    END;
 
     EXECUTE format('GRANT USAGE ON SCHEMA %I TO desi_nexus_system', target);
     EXECUTE format(

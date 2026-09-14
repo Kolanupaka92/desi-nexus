@@ -20,9 +20,17 @@ DO $$
 DECLARE
     target text := current_schema();
 BEGIN
-    IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'desi_nexus_app') THEN
+    -- Created inside its own block rather than guarded by an IF NOT EXISTS
+    -- check. Roles are cluster-wide, and more than one session applies these
+    -- migrations at once -- the test files run in parallel, each building its
+    -- own schema. Check-then-create leaves a window where both sessions see it
+    -- missing and the loser fails on pg_authid_rolname_index. Catching the
+    -- duplicate is the same outcome by a race-free route.
+    BEGIN
         CREATE ROLE desi_nexus_app LOGIN;
-    END IF;
+    EXCEPTION WHEN duplicate_object THEN
+        NULL;
+    END;
 
     EXECUTE format('GRANT USAGE ON SCHEMA %I TO desi_nexus_app', target);
 
