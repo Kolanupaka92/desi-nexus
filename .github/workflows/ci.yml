@@ -1,0 +1,141 @@
+---
+name: ci
+
+"on":
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  api:
+    name: API
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: services/api
+
+    services:
+      # PostGIS, not plain Postgres: the schema stores venues and home bases as
+      # geography(Point) and the migrations will not apply without it.
+      postgres:
+        image: postgis/postgis:16-3.4
+        env:
+          POSTGRES_USER: desi_nexus
+          POSTGRES_PASSWORD: desi_nexus_ci
+          POSTGRES_DB: desi_nexus_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U desi_nexus -d desi_nexus_test"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+
+      # The rate limiter's buckets live in Redis, and the tests that prove they
+      # are shared across replicas need a real one.
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      DESI_NEXUS_TEST_DATABASE_URL: >-
+        postgresql://desi_nexus:desi_nexus_ci@localhost:5432/desi_nexus_test
+      DESI_NEXUS_TEST_REDIS_URL: redis://localhost:6379/9
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Install
+        run: npm install --no-audit --no-fund
+
+      - name: Typecheck and test
+        # The skip check matters as much as the pass count: the database and
+        # Redis tests skip themselves when their service is not configured, and
+        # a skipped suite still reports success -- so a misconfigured service
+        # would quietly stop covering the repository or rate-limiting layer
+        # while CI stayed green.
+        run: |
+          set -o pipefail
+          npm test 2>&1 | tee test-output.txt
+          skipped=$(awk '/^# skipped/ {print $3; exit}' test-output.txt)
+          echo "skipped: ${skipped:-unknown}"
+          if [ "${skipped:-1}" != "0" ]; then
+            echo "::error::service-backed tests were skipped; check the postgres and redis services"
+            exit 1
+          fi
+
+  web:
+    name: Web
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/web
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Install
+        run: npm install --no-audit --no-fund
+
+      - name: Typecheck
+        run: npx tsc --noEmit
+
+      - name: Build
+        # A production build type-checks every route and catches the
+        # server/client boundary mistakes that only appear when React tries to
+        # serialise across it -- a plain tsc pass does not see those.
+        run: npm run build
+
+  secrets:
+    name: Secret scan
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Fail on committed credentials
+        # This platform handles money and identity; a key reaching the history
+        # is an incident, not a cleanup task.
+        run: |
+          set +e
+          # Each pattern targets a credential's own shape rather than the name
+          # of the variable it lands in. Matching "SECRET=" would flag the
+          # deployment docs, which show how to reference a secret without
+          # containing one -- a scan that cries wolf is a scan people switch off.
+          key='BEGIN [A-Z ]*PRIVATE KEY'
+          # Live Stripe keys. Test keys are deliberately allowed.
+          stripe='(sk|rk)_live_[0-9a-zA-Z]{16,}'
+          # A Google service-account JSON key.
+          google='"private_key_id"[[:space:]]*:[[:space:]]*"[0-9a-f]{16,}"'
+          # A connection string carrying a real password to a real host.
+          # localhost, 127.0.0.1 and example hosts are how the docs show shape.
+          conn='(postgres(ql)?|redis|rediss|mongodb)://[^:@/\s]+:(?![$])[^@/\s]+@(?!localhost|127\.0\.0\.1|example)'
+          # A long opaque value assigned to one of our own secrets.
+          opaque='(STRIPE_API_KEY|DESI_NEXUS_TOKEN_SECRET|DESI_NEXUS_WEBHOOK_SECRET)=[A-Za-z0-9/+_-]{24,}'
+          pattern="($key|$stripe|$google|$conn|$opaque)"
+          matches=$(grep -rInP "$pattern" \
+            --exclude-dir=.git --exclude-dir=.github \
+            --exclude-dir=node_modules --exclude-dir=dist --exclude-dir=.next \
+            --exclude=package-lock.json .)
+          if [ -n "$matches" ]; then
+            echo "Possible credential material committed:"
+            echo "$matches"
+            exit 1
+          fi
+          echo "No credential patterns found."

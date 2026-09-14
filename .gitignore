@@ -1,0 +1,14 @@
+node_modules/
+dist/
+.next/
+next-env.d.ts
+*.tsbuildinfo
+test-output.txt
+
+# Local environment. Never commit a real one.
+.env
+.env.*
+!.env.example
+
+# Screenshots produced by the end-to-end run.
+apps/web/e2e/*.png
