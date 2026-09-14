@@ -15,6 +15,7 @@ const CHROME = "/opt/pw-browsers/chromium-1194/chrome-linux/chrome";
 const PASSWORD = "a-long-enough-passphrase";
 
 const stamp = Date.now();
+const VENUE_ADDRESS = "8000 Warren Pkwy, Frisco TX 75034";
 const HOST_EMAIL = `host.${stamp}@frisco.test`;
 const VENDOR_EMAIL = `mua.${stamp}@plano.test`;
 
@@ -82,7 +83,7 @@ try {
 
   await hostPage.selectOption('select[name="specialty"]', "mua");
   await hostPage.fill('input[name="eventDate"]', "2027-06-20");
-  await hostPage.selectOption('select[name="venue"]', { label: "Dallas-Fort Worth" });
+  await hostPage.fill('input[name="venueAddress"]', VENUE_ADDRESS);
   await hostPage.fill('input[name="budgetMin"]', "400");
   await hostPage.fill('input[name="budgetMax"]', "900");
   await hostPage.click('input[name="culturalTags"][value="telugu_traditional"]');
@@ -97,6 +98,14 @@ try {
   const gigUrl = hostPage.url();
   const gigId = gigUrl.split("/gigs/")[1].split("?")[0];
   check(Boolean(gigId), `gig created (${gigId.slice(0, 8)}…)`);
+
+  // The address was resolved server-side and echoed back, so a host can catch a
+  // wrong match before a vendor drives to it.
+  const venueShown = await hostPage.textContent("main");
+  check(
+    /warren pkwy/i.test(venueShown ?? ""),
+    "the resolved venue address is shown on the gig",
+  );
   check(
     (await hostPage.textContent("body"))?.includes("Draft") ?? false,
     "a new gig starts as a draft, not live",

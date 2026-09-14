@@ -476,10 +476,10 @@ class PgGigs implements GigRepository {
     return this.db.withTransaction(async (tx) => {
       await tx.query(
         `INSERT INTO gigs (id, host_id, state, event_type_code, specialty_code, event_date,
-             venue, metro_code, budget_min_cents, budget_max_cents, headcount, notes,
-             application_count, created_at)
+             venue, venue_address, metro_code, budget_min_cents, budget_max_cents,
+             headcount, notes, application_count, created_at)
          VALUES ($1, $2, $3::gig_state, $4, $5, $6,
-                 ST_MakePoint($7, $8)::geography, $9, $10, $11, $12, $13, $14, $15)`,
+                 ST_MakePoint($7, $8)::geography, $9, $10, $11, $12, $13, $14, $15, $16)`,
         [
           gig.id,
           gig.hostId,
@@ -489,6 +489,7 @@ class PgGigs implements GigRepository {
           gig.brief.eventDate,
           gig.brief.venue.lng,
           gig.brief.venue.lat,
+          gig.brief.venueAddress ?? null,
           gig.brief.metroId || null,
           gig.brief.budgetMinCents,
           gig.brief.budgetMaxCents,
@@ -553,15 +554,16 @@ class PgGigs implements GigRepository {
            specialty_code = $4,
            event_date = $5,
            venue = ST_MakePoint($6, $7)::geography,
-           metro_code = $8,
-           budget_min_cents = $9,
-           budget_max_cents = $10,
-           headcount = $11,
-           notes = $12,
-           application_count = $13,
-           accepted_offer_id = $14,
-           escrow_id = $15,
-           cancellation_reason = $16,
+           venue_address = $8,
+           metro_code = $9,
+           budget_min_cents = $10,
+           budget_max_cents = $11,
+           headcount = $12,
+           notes = $13,
+           application_count = $14,
+           accepted_offer_id = $15,
+           escrow_id = $16,
+           cancellation_reason = $17,
            published_at = COALESCE(published_at, CASE WHEN $2 <> 'Draft' THEN now() END)
          WHERE id = $1
          RETURNING id`,
@@ -573,6 +575,7 @@ class PgGigs implements GigRepository {
           gig.brief.eventDate,
           gig.brief.venue.lng,
           gig.brief.venue.lat,
+          gig.brief.venueAddress ?? null,
           gig.brief.metroId || null,
           gig.brief.budgetMinCents,
           gig.brief.budgetMaxCents,
@@ -631,7 +634,7 @@ async function appendTransitions(
 }
 
 const GIG_COLUMNS = `id, host_id, state, event_type_code, specialty_code, event_date,
-  ST_Y(venue::geometry) AS lat, ST_X(venue::geometry) AS lng,
+  ST_Y(venue::geometry) AS lat, ST_X(venue::geometry) AS lng, venue_address,
   metro_code, budget_min_cents, budget_max_cents, headcount, notes,
   application_count, accepted_offer_id, escrow_id, cancellation_reason,
   created_at, updated_at`;
@@ -658,6 +661,7 @@ async function loadGig(db: Database, id: string): Promise<Gig | undefined> {
     specialty: row.specialty_code as GigBrief["specialty"],
     eventDate: dateOnly(row.event_date),
     venue: { lat: num(row.lat), lng: num(row.lng) },
+    ...(row.venue_address ? { venueAddress: row.venue_address as string } : {}),
     metroId: (row.metro_code as string | null) ?? "",
     budgetMinCents: num(row.budget_min_cents),
     budgetMaxCents: num(row.budget_max_cents),

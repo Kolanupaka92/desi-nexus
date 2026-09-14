@@ -7,6 +7,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { harness, onboard, payoutReadyVendor, postWebhook, BRIEF, FRISCO, PLANO } from "./helpers.js";
+import { GeocodeError } from "../src/infra/geocode/index.js";
 
 test("health check responds", async () => {
   const h = harness();
@@ -543,4 +544,159 @@ test("a host cannot use the vendor discovery feed", async () => {
   const host = await onboard(h, { email: "nosy-host@frisco.test", roles: ["host"], homeBase: FRISCO });
   const result = await h.call("GET", "/v1/discover/gigs", { token: host.token });
   assert.equal(result.status, 403);
+});
+
+/**
+ * Venue resolution. The address a host types decides the metro, every
+ * proximity score and every mile of travel billed, so the interesting cases are
+ * the ones where a wrong answer still looks like a right one.
+ */
+
+/** BRIEF carries explicit coordinates; this is the same brief by address. */
+const ADDRESS_BRIEF = (() => {
+  const { venue: _venue, ...rest } = BRIEF;
+  return { ...rest, venueAddress: "8000 Warren Pkwy, Frisco TX 75034" };
+})();
+
+test("a gig posted by address is geocoded and keeps the resolved address", async () => {
+  const h = harness();
+  const host = await onboard(h, { email: "addr@frisco.test", roles: ["host"], homeBase: FRISCO });
+
+  const created = await h.call("POST", "/v1/gigs", { token: host.token, body: ADDRESS_BRIEF });
+  assert.equal(created.status, 201, JSON.stringify(created.body));
+  const brief = (created.body as { gig: { brief: { venue: { lat: number; lng: number }; venueAddress?: string; metroId: string } } }).gig.brief;
+
+  assert.equal(brief.metroId, "dfw");
+  assert.ok(brief.venueAddress, "the resolved address is kept to show back to both sides");
+  // Resolved to a real point in Frisco, not to the DFW centroid the old form
+  // submitted for every venue in the metro.
+  assert.ok(Math.abs(brief.venue.lat - 33.15) < 0.2, `unexpected latitude ${brief.venue.lat}`);
+  assert.notDeepEqual(brief.venue, { lat: 32.8, lng: -97.05 });
+});
+
+test("two venues in the same metro resolve to different points", async () => {
+  // This is the regression the whole change exists to prevent: while the form
+  // submitted a metro centroid, every gig in DFW shared one location, so
+  // proximity contributed nothing and intra-metro mileage was always zero.
+  const h = harness();
+  const host = await onboard(h, { email: "twovenues@frisco.test", roles: ["host"], homeBase: FRISCO });
+
+  const first = await h.call("POST", "/v1/gigs", {
+    token: host.token,
+    body: { ...ADDRESS_BRIEF, venueAddress: "8000 Warren Pkwy, Frisco TX 75034" },
+  });
+  const second = await h.call("POST", "/v1/gigs", {
+    token: host.token,
+    body: { ...ADDRESS_BRIEF, venueAddress: "2601 Preston Rd, Frisco TX 75034" },
+  });
+  assert.equal(first.status, 201, JSON.stringify(first.body));
+  assert.equal(second.status, 201, JSON.stringify(second.body));
+
+  const venueOf = (result: typeof first) =>
+    (result.body as { gig: { brief: { venue: { lat: number; lng: number } } } }).gig.brief.venue;
+  assert.notDeepEqual(venueOf(first), venueOf(second));
+});
+
+test("an address that cannot be resolved is refused, not silently approximated", async () => {
+  const h = harness();
+  const host = await onboard(h, { email: "bad@frisco.test", roles: ["host"], homeBase: FRISCO });
+  h.geocoder.fail(
+    "9999 Nowhere Rd, Frisco TX",
+    new GeocodeError("not_found", "no address matched that text"),
+  );
+
+  const created = await h.call("POST", "/v1/gigs", {
+    token: host.token,
+    body: { ...ADDRESS_BRIEF, venueAddress: "9999 Nowhere Rd, Frisco TX" },
+  });
+  assert.equal(created.status, 400);
+  assert.equal((created.body as { error: { code: string } }).error.code, "address_not_found");
+});
+
+test("a city name alone is refused, because it would price every vendor alike", async () => {
+  const h = harness();
+  const host = await onboard(h, { email: "vague@frisco.test", roles: ["host"], homeBase: FRISCO });
+
+  const created = await h.call("POST", "/v1/gigs", {
+    token: host.token,
+    body: { ...ADDRESS_BRIEF, venueAddress: "Frisco, TX" },
+  });
+  assert.equal(created.status, 400);
+  assert.equal((created.body as { error: { code: string } }).error.code, "address_too_vague");
+});
+
+test("an ambiguous address comes back with the candidates to choose from", async () => {
+  const h = harness();
+  const host = await onboard(h, { email: "ambig@frisco.test", roles: ["host"], homeBase: FRISCO });
+  h.geocoder.fail(
+    "100 Main St, TX",
+    new GeocodeError("ambiguous", "that address matches more than one place", [
+      "100 MAIN ST, FRISCO, TX",
+      "100 MAIN ST, HOUSTON, TX",
+    ]),
+  );
+
+  const created = await h.call("POST", "/v1/gigs", {
+    token: host.token,
+    body: { ...ADDRESS_BRIEF, venueAddress: "100 Main St, TX" },
+  });
+  assert.equal(created.status, 400);
+  const error = (created.body as { error: { code: string; details?: { candidates?: string[] } } }).error;
+  assert.equal(error.code, "address_ambiguous");
+  assert.equal(error.details?.candidates?.length, 2);
+});
+
+test("an address service outage is a 503, so the host knows to retry", async () => {
+  // Distinct from a bad address: retrying helps here and does not there, and a
+  // host told "check the address" will edit a perfectly good one.
+  const h = harness();
+  const host = await onboard(h, { email: "outage@frisco.test", roles: ["host"], homeBase: FRISCO });
+  h.geocoder.fail(
+    "8000 Warren Pkwy, Frisco TX 75034",
+    new GeocodeError("unavailable", "the address lookup service did not respond"),
+  );
+
+  const created = await h.call("POST", "/v1/gigs", { token: host.token, body: ADDRESS_BRIEF });
+  assert.equal(created.status, 503);
+  assert.equal((created.body as { error: { code: string } }).error.code, "address_unavailable");
+});
+
+test("a geocoded venue outside Texas is still refused by the footprint check", async () => {
+  const h = harness();
+  const host = await onboard(h, { email: "outside@frisco.test", roles: ["host"], homeBase: FRISCO });
+  h.geocoder.pin("1600 Pennsylvania Ave NW, Washington DC", {
+    point: { lat: 38.8977, lng: -77.0365 },
+    formattedAddress: "1600 PENNSYLVANIA AVE NW, WASHINGTON, DC",
+    precision: "interpolated",
+  });
+
+  const created = await h.call("POST", "/v1/gigs", {
+    token: host.token,
+    body: { ...ADDRESS_BRIEF, venueAddress: "1600 Pennsylvania Ave NW, Washington DC" },
+  });
+  assert.equal(created.status, 400);
+  assert.equal((created.body as { error: { code: string } }).error.code, "outside_footprint");
+});
+
+test("a brief with neither an address nor coordinates is refused", async () => {
+  const h = harness();
+  const host = await onboard(h, { email: "noplace@frisco.test", roles: ["host"], homeBase: FRISCO });
+  const { venueAddress: _address, ...withoutVenue } = ADDRESS_BRIEF;
+
+  const created = await h.call("POST", "/v1/gigs", { token: host.token, body: withoutVenue });
+  assert.equal(created.status, 400);
+  assert.equal((created.body as { error: { code: string } }).error.code, "invalid_request");
+});
+
+test("explicit coordinates still work, and skip the geocoder entirely", async () => {
+  // A partner integration that already holds a venue's location should not pay
+  // for a lookup to tell it what it just sent.
+  const h = harness();
+  const host = await onboard(h, { email: "coords@frisco.test", roles: ["host"], homeBase: FRISCO });
+
+  const created = await h.call("POST", "/v1/gigs", { token: host.token, body: BRIEF });
+  assert.equal(created.status, 201, JSON.stringify(created.body));
+  assert.equal(h.geocoder.calls, 0);
+  const venue = (created.body as { gig: { brief: { venue: unknown } } }).gig.brief.venue;
+  assert.deepEqual(venue, FRISCO);
 });

@@ -12,6 +12,7 @@ import { buildDeps, buildRouter, type AppDeps } from "../src/app.js";
 import type { HttpResult, RequestContext } from "../src/http/router.js";
 import { FakeStripeGateway } from "../src/infra/stripe/fake.js";
 import { InMemoryRateLimiter } from "../src/infra/rateLimit.js";
+import { FakeGeocoder } from "../src/infra/geocode/fake.js";
 
 export const CONFIG = {
   tokenSecret: "test-token-secret-long-enough-for-hmac",
@@ -25,6 +26,7 @@ export const PLANO = { lat: 33.0198, lng: -96.6989 };
 export interface Harness {
   readonly deps: AppDeps;
   readonly stripe: FakeStripeGateway;
+  readonly geocoder: FakeGeocoder;
   call(
     method: string,
     path: string,
@@ -34,10 +36,12 @@ export interface Harness {
 
 export function harness(store?: AppDeps["store"]): Harness {
   const stripe = new FakeStripeGateway();
+  const geocoder = new FakeGeocoder();
   // A generous clock-free limiter, so the flow tests are not throttled.
   const deps = buildDeps({
     config: CONFIG,
     stripe,
+    geocoder,
     limiter: new InMemoryRateLimiter(() => Date.now()),
     ...(store ? { store } : {}),
   });
@@ -47,6 +51,7 @@ export function harness(store?: AppDeps["store"]): Harness {
   return {
     deps,
     stripe,
+    geocoder,
     async call(method, path, options = {}) {
       counter += 1;
       const rawBody = options.rawBody ?? (options.body === undefined ? "" : JSON.stringify(options.body));

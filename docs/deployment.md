@@ -23,6 +23,7 @@ In production the API exits rather than starting half-configured:
 | `DATABASE_URL` | Without it the in-memory store is used, and every booking is lost on restart. |
 | `REDIS_URL` | Without it rate limits are per-pod, which is to say not limits. |
 | `STRIPE_API_KEY` | Without it the fake gateway is used and bookings move no money. |
+| `GEOCODER_URL` | Without it venue addresses resolve through the fake, which invents plausible coordinates. |
 
 Each is selected by presence rather than a feature flag, so there is no
 configuration in which the service looks correct and is not.
@@ -82,7 +83,8 @@ gcloud run deploy desi-nexus-api \
   --set-secrets DESI_NEXUS_TOKEN_SECRET=dn-token-secret:latest \
   --set-secrets DESI_NEXUS_WEBHOOK_SECRET=dn-webhook-secret:latest \
   --set-secrets DATABASE_URL=dn-database-url:latest \
-  --set-secrets REDIS_URL=dn-redis-url:latest
+  --set-secrets REDIS_URL=dn-redis-url:latest \
+  --set-env-vars GEOCODER_URL=https://geocoding.geo.census.gov/geocoder/locations/onelineaddress
 ```
 
 `us-south1` is Dallas — the pilot's own metro, which keeps the round trip to
@@ -96,6 +98,25 @@ refuse to start in production without it, so either add it or run the pilot with
 `NODE_ENV=staging`.
 
 Health check: `GET /healthz`.
+
+`GEOCODER_URL` is a plain environment variable, not a secret: the US Census
+address service takes no API key. It is configuration rather than a constant
+because Census publishes its benchmarks at versioned paths and mirrors exist.
+
+**Verify the address lookup once, on the first deploy.** The parser is tested
+against recorded payloads and the HTTP plumbing against an injected client, but
+the build environment's egress policy blocks `geocoding.geo.census.gov`, so no
+automated test has ever made the real request. Post one gig by address and
+confirm the venue that comes back is the right building:
+
+```bash
+curl -s "$GEOCODER_URL?address=8000+Warren+Pkwy,+Frisco+TX+75034&benchmark=Public_AR_Current&format=json" \
+  | python3 -c 'import json,sys; m=json.load(sys.stdin)["result"]["addressMatches"]; print(m[0]["matchedAddress"], m[0]["coordinates"])'
+```
+
+Expect a Frisco address with `x` near `-96.82` and `y` near `33.15`. If `x` and
+`y` come back the other way round, the provider changed its contract and every
+venue will land in the Indian Ocean while still looking like a valid number.
 
 ## 4. Web (Vercel)
 

@@ -21,8 +21,16 @@ export interface FormState {
 /** Turn an API failure into something a person can act on. */
 function explain(error: unknown): FormState {
   if (error instanceof ApiCallError) {
-    const field = (error.details as { field?: string } | undefined)?.field;
-    return { error: error.message, ...(field ? { field } : {}) };
+    const details = error.details as { field?: string; candidates?: string[] } | undefined;
+    // An ambiguous address is only actionable if the host can see what it
+    // matched; the message alone tells them to be more specific without
+    // saying which places it was choosing between.
+    const candidates = details?.candidates;
+    const message =
+      candidates && candidates.length > 0
+        ? `${error.message}. Did you mean: ${candidates.join("; ")}?`
+        : error.message;
+    return { error: message, ...(details?.field ? { field: details.field } : {}) };
   }
   if (error instanceof Error && /fetch failed|ECONNREFUSED/.test(error.message)) {
     return { error: "Cannot reach the booking service right now. Please try again in a moment." };
@@ -112,7 +120,6 @@ export async function verifyOtpAction(_prev: FormState, form: FormData): Promise
 }
 
 export async function createGigAction(_prev: FormState, form: FormData): Promise<FormState> {
-  const [lat, lng] = str(form, "venue").split(",").map(Number);
   let created: { gig: { id: string } };
   try {
     created = await apiFetch("/v1/gigs", {
@@ -121,7 +128,9 @@ export async function createGigAction(_prev: FormState, form: FormData): Promise
         eventType: str(form, "eventType"),
         specialty: str(form, "specialty"),
         eventDate: str(form, "eventDate"),
-        venue: { lat, lng },
+        // Sent as text and resolved by the API. Geocoding in the browser would
+        // let a caller post coordinates that flatter its own travel quote.
+        venueAddress: str(form, "venueAddress"),
         budgetMinCents: cents(form, "budgetMin"),
         budgetMaxCents: cents(form, "budgetMax"),
         culturalTags: form.getAll("culturalTags").map(String),

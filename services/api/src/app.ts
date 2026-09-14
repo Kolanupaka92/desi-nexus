@@ -21,6 +21,10 @@ import type { StripeGateway } from "./infra/stripe/index.js";
 import { FakeStripeGateway } from "./infra/stripe/fake.js";
 import { liveStripeFromEnv } from "./infra/stripe/live.js";
 import { InMemoryEventBus, type EventBus } from "./events/bus.js";
+import type { Geocoder } from "./infra/geocode/index.js";
+import { CensusGeocoder } from "./infra/geocode/census.js";
+import { CachedGeocoder } from "./infra/geocode/cached.js";
+import { FakeGeocoder } from "./infra/geocode/fake.js";
 import type { IncomingMessage, ServerResponse } from "node:http";
 
 export interface AppConfig {
@@ -36,6 +40,7 @@ export interface AppDeps {
   readonly stripe: StripeGateway;
   readonly bus: EventBus;
   readonly limiter: RateLimiter;
+  readonly geocoder: Geocoder;
 }
 
 /**
@@ -57,6 +62,7 @@ export function buildDeps(overrides: Partial<AppDeps> = {}): AppDeps {
     stripe: overrides.stripe ?? defaultStripeGateway(),
     bus: overrides.bus ?? new InMemoryEventBus(),
     limiter: overrides.limiter ?? defaultRateLimiter(),
+    geocoder: overrides.geocoder ?? defaultGeocoder(),
   };
 }
 
@@ -135,6 +141,40 @@ function defaultStripeGateway(): StripeGateway {
     return new FakeStripeGateway();
   }
   return liveStripeFromEnv();
+}
+
+/**
+ * The real address service when one is configured, the deterministic fake
+ * otherwise.
+ *
+ * Selected by the presence of an endpoint rather than a flag, like every other
+ * dependency here. The endpoint is configuration rather than a constant because
+ * the Census service publishes its benchmarks at versioned paths and mirrors
+ * exist; pinning it in code would make a provider change a release.
+ *
+ * Production refuses the fake. Its coordinates are plausible -- deliberately
+ * so, to keep proximity scoring honest in development -- which is precisely why
+ * shipping it would be dangerous: every gig would carry a confident, wrong
+ * venue, and mileage would be billed against it.
+ */
+function defaultGeocoder(): Geocoder {
+  const endpoint = process.env.GEOCODER_URL;
+  if (!endpoint) {
+    if (process.env.NODE_ENV === "production") {
+      throw new Error(
+        "GEOCODER_URL is required in production: the fake geocoder invents plausible coordinates",
+      );
+    }
+    return new FakeGeocoder();
+  }
+  return new CachedGeocoder(
+    new CensusGeocoder({
+      endpoint,
+      ...(process.env.GEOCODER_TIMEOUT_MS
+        ? { timeoutMs: Number(process.env.GEOCODER_TIMEOUT_MS) }
+        : {}),
+    }),
+  );
 }
 
 export function buildRouter(deps: AppDeps): Router {

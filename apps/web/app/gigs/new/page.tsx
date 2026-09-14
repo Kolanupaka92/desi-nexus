@@ -36,19 +36,19 @@ export default async function NewGigPage() {
           </div>
 
           <div className="field">
-            <label htmlFor="venue">Venue metro</label>
-            <select id="venue" name="venue" required defaultValue="">
-              <option value="" disabled>
-                Where is the event?
-              </option>
-              {data.metros.map((metro) => (
-                <option key={metro.id} value={`${metro.center.lat},${metro.center.lng}`}>
-                  {metro.name}
-                </option>
-              ))}
-            </select>
+            <label htmlFor="venueAddress">Venue address</label>
+            <input
+              id="venueAddress"
+              name="venueAddress"
+              type="text"
+              required
+              autoComplete="street-address"
+              placeholder="8000 Warren Pkwy, Frisco TX 75034"
+            />
             <p className="hint">
-              Travel beyond a vendor&rsquo;s free radius is quoted automatically, round trip.
+              The street address, not just the city &mdash; mileage is quoted from it, round
+              trip, and vendors are ranked partly on how far they have to drive. Currently{" "}
+              {data.metros.map((metro) => metro.name).join(", ")}.
             </p>
           </div>
 
