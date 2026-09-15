@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { taxonomy } from "@/lib/api";
+import { EVENT_GROUPS } from "@/content/seo";
 import { label } from "@/lib/format";
 
 /**
@@ -28,13 +29,16 @@ const HOW_IT_WORKS = [
 ];
 
 export default async function HomePage() {
-  let groups: Record<string, string[]> = {};
+  // The live taxonomy when the API answers, so a newly seeded occasion shows up
+  // without a redeploy -- and the bundled copy when it does not. Falling back to
+  // an empty object renders the grid's heading above nothing at all, which is
+  // what the front door looked like any time the API was unreachable.
+  let groups: Record<string, readonly string[]> = EVENT_GROUPS;
   try {
     const data = await taxonomy();
-    groups = data.eventGroups;
+    if (Object.keys(data.eventGroups).length > 0) groups = data.eventGroups;
   } catch {
-    // The landing page is the front door; it renders without the API rather
-    // than 500ing at a first-time visitor.
+    // Keeping the bundled copy.
   }
 
   return (

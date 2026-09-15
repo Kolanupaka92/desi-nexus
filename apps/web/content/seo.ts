@@ -253,3 +253,53 @@ export const metroBySlug = (slug: string): Metro | undefined =>
 
 export const specialityBySlug = (slug: string): Speciality | undefined =>
   SPECIALITIES.find((speciality) => speciality.slug === slug);
+
+/**
+ * The occasion taxonomy, for the landing page's grid.
+ *
+ * The page prefers the live API so a newly seeded occasion appears without a
+ * redeploy, and falls back to this. Without a fallback the grid renders as a
+ * heading with nothing under it whenever the API is unreachable -- which is
+ * exactly what the front door looks like before the API is hosted at all.
+ *
+ * Kept in the same order and grouping as the service's own EVENT_GROUPS; the
+ * drift test asserts both directions.
+ */
+export const EVENT_GROUPS: Readonly<Record<string, readonly string[]>> = {
+  wedding: [
+    "roka_engagement",
+    "mehndi",
+    "haldi",
+    "sangeet",
+    "baraat",
+    "hindu_ceremony",
+    "nikah",
+    "sikh_anand_karaj",
+    "kerala_christian_wedding",
+    "reception",
+  ],
+  religious: [
+    "griha_pravesham",
+    "satyanarayan_puja",
+    "ayush_homam",
+    "upanayanam",
+    "namakaranam",
+  ],
+  milestone: [
+    "half_saree_function",
+    "mundan_child_carnival",
+    "seemantham_baby_shower",
+    "first_birthday",
+    "graduation_party",
+  ],
+  festival: ["garba_navratri", "diwali_celebration", "holi_event", "bhangra_night"],
+  commercial: [
+    "boutique_lookbook",
+    "brand_campaign_shoot",
+    "jewellery_catalogue",
+    "corporate_diwali",
+    "corporate_offsite",
+    "restaurant_launch",
+    "influencer_collab",
+  ],
+};

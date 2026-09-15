@@ -23,7 +23,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, resolve } from "node:path";
-import { CREW_SPECIALTIES, EVENT_TYPES } from "../src/domain/taxonomy.js";
+import { CREW_SPECIALTIES, EVENT_GROUPS, EVENT_TYPES } from "../src/domain/taxonomy.js";
 import { TEXAS_METROS } from "../src/domain/geo.js";
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -103,4 +103,49 @@ test("slugs are unique, so no two pages claim the same URL", () => {
       `duplicate ${labelText} slug: two pages would resolve to one URL`,
     );
   }
+});
+
+/**
+ * The landing page's occasion grid is a bundled copy of EVENT_GROUPS, used when
+ * the API is unreachable. A stale copy is not a crash -- it is a front door
+ * quietly advertising occasions the service no longer matches, or omitting ones
+ * it does. Compared group by group, in both directions.
+ */
+const bundledGroups = (() => {
+  const start = content.indexOf("export const EVENT_GROUPS");
+  assert.notEqual(start, -1, "seo.ts no longer bundles EVENT_GROUPS");
+  const block = content.slice(start);
+  const groups: Record<string, string[]> = {};
+  for (const match of block.matchAll(/^\s{2}([a-z_]+):\s*\[([^\]]*)\]/gms)) {
+    const name = match[1] as string;
+    groups[name] = [...(match[2] as string).matchAll(/"([a-z0-9_]+)"/g)].map(
+      (event) => event[1] as string,
+    );
+  }
+  return groups;
+})();
+
+test("the bundled occasion grid parses", () => {
+  assert.ok(Object.keys(bundledGroups).length > 0, "no groups parsed out of seo.ts");
+});
+
+test("the landing page's occasion grid matches the service, group for group", () => {
+  assert.deepEqual(
+    Object.keys(bundledGroups).sort(),
+    Object.keys(EVENT_GROUPS).sort(),
+    "event groups differ between the landing page and the service",
+  );
+  for (const [group, events] of Object.entries(EVENT_GROUPS)) {
+    assert.deepEqual(
+      bundledGroups[group],
+      [...events],
+      `group "${group}" differs between the landing page and the service`,
+    );
+  }
+});
+
+test("the bundled grid covers every event type the service knows", () => {
+  const bundled = new Set(Object.values(bundledGroups).flat());
+  const missing = EVENT_TYPES.filter((type) => !bundled.has(type));
+  assert.deepEqual(missing, [], "matchable but absent from the landing page");
 });
