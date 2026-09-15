@@ -241,10 +241,7 @@ export function createRequestListener(router: Router) {
       headers: req.headers,
       rawBody,
       body,
-      // Behind the load balancer the real client address is the first hop in
-      // X-Forwarded-For; trusting the whole header would let a client spoof its
-      // own identity and escape its rate limit bucket.
-      ip: firstForwardedFor(req.headers["x-forwarded-for"]) ?? req.socket.remoteAddress ?? "unknown",
+      ip: clientIp(req),
       traceId,
     };
 
@@ -253,8 +250,83 @@ export function createRequestListener(router: Router) {
   };
 }
 
-function firstForwardedFor(header: string | string[] | undefined): string | undefined {
-  const value = Array.isArray(header) ? header[0] : header;
-  const first = value?.split(",")[0]?.trim();
-  return first && first.length > 0 ? first : undefined;
+/**
+ * How many proxies in front of this service are ours.
+ *
+ * Every entry in X-Forwarded-For to the right of the client's own is appended
+ * by a proxy; everything to the left of that the client wrote. One hop behind
+ * Cloud Run, Vercel or a single load balancer; two if a CDN sits in front of it.
+ */
+function trustedProxyHops(): number {
+  const raw = process.env.TRUSTED_PROXY_HOPS;
+  if (raw === undefined || raw.trim() === "") {
+    if (process.env.NODE_ENV === "production") {
+      throw new Error(
+        "TRUSTED_PROXY_HOPS is required in production: without it the rate limiter " +
+          "either trusts a header the client controls or buckets every user together",
+      );
+    }
+    // Nothing in front of the process locally, so the socket is the truth.
+    return 0;
+  }
+  const hops = Number(raw);
+  if (!Number.isInteger(hops) || hops < 0) {
+    throw new Error(`TRUSTED_PROXY_HOPS must be a non-negative integer, got: ${raw}`);
+  }
+  return hops;
+}
+
+const TRUSTED_HOPS = trustedProxyHops();
+
+/**
+ * The client's address, counted from the right.
+ *
+ * This used to take the FIRST entry in X-Forwarded-For, with a comment claiming
+ * that resisted spoofing. It is the opposite. A proxy appends the address it
+ * saw; it does not replace what arrived. So a client sending
+ *
+ *     X-Forwarded-For: 1.2.3.4
+ *
+ * reaches the service as "1.2.3.4, <real client>", and reading index 0 returns
+ * the value the attacker chose. Rotating it per request gives every request its
+ * own rate-limit bucket -- verified against this service: twelve login attempts
+ * from one forged address are cut off at the eleventh, and twelve from twelve
+ * forged addresses all go through.
+ *
+ * That is not a throttling nuisance. The tightest budget in the system is `otp`
+ * at five per hour, which is what stands between an attacker and brute-forcing
+ * a six-digit phone code, and `auth` at ten per fifteen minutes is what stands
+ * between them and credential stuffing.
+ *
+ * Counting from the right fixes it: with one trusted proxy the last entry is
+ * the address that proxy actually observed, and nothing the client writes can
+ * move it.
+ */
+export function resolveClientIp(
+  header: string | string[] | undefined,
+  direct: string,
+  trustedHops: number,
+): string {
+  if (trustedHops <= 0) return direct;
+
+  // Node joins repeated headers into an array; the forwarded chain is their
+  // concatenation in arrival order.
+  const chain = (Array.isArray(header) ? header.join(",") : (header ?? ""))
+    .split(",")
+    .map((entry) => entry.trim())
+    .filter((entry) => entry.length > 0);
+  if (chain.length === 0) return direct;
+
+  // One hop => the last entry. Clamped, so a short chain (a request that
+  // skipped a proxy) falls back to the leftmost entry rather than undefined.
+  const index = Math.max(0, chain.length - trustedHops);
+  return chain[index] ?? direct;
+}
+
+function clientIp(req: IncomingMessage): string {
+  return resolveClientIp(
+    req.headers["x-forwarded-for"],
+    req.socket.remoteAddress ?? "unknown",
+    TRUSTED_HOPS,
+  );
 }

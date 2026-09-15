@@ -4,7 +4,16 @@ import { cookies } from "next/headers";
 import { ACCESS_COOKIE } from "@/lib/api";
 import "./globals.css";
 
+/**
+ * Absolute base for canonicals and Open Graph URLs.
+ *
+ * Without it Next emits `<link rel="canonical" href="/hire/...">`. Relative
+ * canonicals are legal and a bad idea: they resolve against whatever host
+ * served the page, so a preview deployment or an apex/www mismatch quietly
+ * declares itself canonical and splits the ranking it was meant to consolidate.
+ */
 export const metadata: Metadata = {
+  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL ?? "https://desi-nexus.com"),
   title: {
     default: "DESI-NEXUS — South Asian event talent in Texas",
     template: "%s · DESI-NEXUS",

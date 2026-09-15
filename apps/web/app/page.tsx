@@ -1,25 +1,37 @@
 import Link from "next/link";
 import { taxonomy } from "@/lib/api";
 import { label } from "@/lib/format";
+import { EVENT_GROUPS, MATCH_WEIGHTS, METROS, SPECIALITIES } from "@/content/seo";
+import { HeroSearch } from "@/components/HeroSearch";
 
 /**
- * The public landing page.
+ * The front door.
  *
  * Rendered on the server and cached, because this is the page that has to rank:
- * the taxonomy below is the long tail of search terms nobody else covers --
+ * the occasions below are the long tail of search terms nobody else covers --
  * "Half-Saree Function makeup artist Frisco" is not a query a generic
  * marketplace has a page for.
+ *
+ * Designed dark and saturated above the fold because that is the register the
+ * category actually lives in. The working surfaces -- gig briefs, the vendor
+ * feed -- stay on paper, where long forms belong.
+ *
+ * There is deliberately no photography here yet and no invented social proof.
+ * Stock images of models would be a claim about who is on the platform that is
+ * not true, and it is also exactly the generic look this is trying to escape.
+ * The layout is built around image slots for when real vendor work exists; the
+ * ornament is drawn, not photographed, in the meantime.
  */
 export const revalidate = 3600;
 
-const HOW_IT_WORKS = [
+const STEPS = [
   {
     title: "Post what you are actually planning",
     body: "A Sangeet is not a reception and a Griha Pravesham is not a birthday. Pick the real occasion, the look you want, and the languages you need on the day.",
   },
   {
     title: "Get matched in under an hour",
-    body: "We rank local crew on cultural fit first, then distance, budget, language and track record — and show you why each one ranked where they did.",
+    body: "We rank local crew on cultural fit first, then distance, budget, language and track record — and show you exactly why each one ranked where they did.",
   },
   {
     title: "Pay into escrow, not into hope",
@@ -27,73 +39,267 @@ const HOW_IT_WORKS = [
   },
 ];
 
+const PROMISES = [
+  {
+    title: "Nobody can buy their way to the top",
+    body: "Placement is not for sale. Ranking is cultural fit, distance, budget, language and track record — and the breakdown is shown to you.",
+  },
+  {
+    title: "Travel is quoted before anyone commits",
+    body: "Round trip from the vendor's base, past a free radius they set. A 9am call in Katy booked out of Plano is two long drives, and the quote says so.",
+  },
+  {
+    title: "A vendor cancelling costs you nothing",
+    body: "Their cancellation is a full refund, always. Yours is tiered by how close to the day it is, and the tiers are stated before you pay.",
+  },
+  {
+    title: "The ledger cannot be quietly edited",
+    body: "Every movement of money is an append-only entry. Corrections are new entries, not rewrites.",
+  },
+];
+
+/** The first few occasions of each group, as a taste rather than a dump. */
+const PREVIEW = 4;
+
+const GROUP_BLURB: Record<string, string> = {
+  wedding: "Multi-day, multi-family, never one event.",
+  religious: "The tradition sets the sequence, not the planner.",
+  milestone: "Only make sense inside the family.",
+  festival: "Community-scale nights.",
+  commercial: "Same supply, different demand.",
+};
+
 export default async function HomePage() {
-  let groups: Record<string, string[]> = {};
+  // The live taxonomy when the API answers, so a newly seeded occasion shows up
+  // without a redeploy -- and the bundled copy when it does not.
+  let groups: Record<string, readonly string[]> = EVENT_GROUPS;
   try {
     const data = await taxonomy();
-    groups = data.eventGroups;
+    if (Object.keys(data.eventGroups).length > 0) groups = data.eventGroups;
   } catch {
-    // The landing page is the front door; it renders without the API rather
-    // than 500ing at a first-time visitor.
+    // Keeping the bundled copy.
   }
+
+  const headline = ["mehndi", "sangeet", "half_saree_function", "griha_pravesham", "baraat", "garba_navratri"];
+
+  // The eight most-searched roles. The rest are one click away at /hire.
+  const FEATURED = [
+    "makeup-artist", "photographer", "henna-artist", "pandit",
+    "decorator", "dj", "videographer", "caterer",
+  ];
+  const featured = FEATURED.flatMap((slug) => SPECIALITIES.filter((s) => s.slug === slug));
+
+  // Every occasion, grouped order preserved, as [code, label] for the search.
+  const occasionOptions = Object.values(groups)
+    .flat()
+    .map((code) => [code, label(code)] as const);
 
   return (
     <>
-      <section style={{ padding: "56px 0 12px", maxWidth: 720 }}>
-        <span className="pill">Texas pilot · now booking</span>
-        <h1 style={{ marginTop: 16, fontSize: "2.6rem" }}>
-          The people who actually know your function.
-        </h1>
-        <p style={{ fontSize: "1.1rem", color: "var(--ink-soft)" }}>
-          Makeup artists, photographers, henna artists, decorators, pandits and creators for
-          South Asian events across Texas. Matched on the thing that matters — whether they
-          have done <em>your</em> kind of function before.
-        </p>
-        <div className="row" style={{ marginTop: 22 }}>
-          <Link href="/register?role=host" className="btn">
-            Find talent for my event
-          </Link>
-          <Link href="/register?role=crew" className="btn secondary">
-            I am a vendor — get booked
-          </Link>
+      <section className="bleed hero">
+        <div className="hero-inner">
+          <span className="eyebrow">Texas · now booking</span>
+          <h1>
+            The people who <em>already know</em> your function.
+          </h1>
+          <p className="hero-lede">
+            Makeup artists, photographers, henna artists, pandits, decorators and creators for
+            South Asian events across Texas — matched on whether they have done <em>your</em> kind
+            of function before, not on who paid for placement.
+          </p>
+          {/*
+            The search is the primary action, not the buttons. Every comparable
+            marketplace opens with one, and a visitor who can act in two clicks
+            does not need to be persuaded by a third paragraph first.
+          */}
+          <HeroSearch occasions={occasionOptions} />
+
+          <div className="hero-actions">
+            <Link href="/for-vendors" className="btn ghost">
+              I am a vendor — get booked
+            </Link>
+            <Link href="/gigs/new" className="btn ghost">
+              Post a brief instead
+            </Link>
+          </div>
+          <div className="hero-ticker">
+            {headline.map((event) => (
+              <span key={event}>{label(event)}</span>
+            ))}
+          </div>
         </div>
       </section>
 
-      <section className="grid three" style={{ marginTop: 48 }}>
-        {HOW_IT_WORKS.map((step, index) => (
-          <div className="card" key={step.title}>
-            <span className="pill plain">Step {index + 1}</span>
-            <h3 style={{ marginTop: 12 }}>{step.title}</h3>
-            <p className="muted" style={{ margin: 0, fontSize: "0.94rem" }}>
-              {step.body}
+      <section className="bleed band paper">
+        <div className="shell">
+          <div className="band-head">
+            <span className="eyebrow" style={{ color: "var(--maroon)" }}>
+              Every occasion, named properly
+            </span>
+            <h2>Not &ldquo;wedding&rdquo;. Not &ldquo;party&rdquo;.</h2>
+            <p className="muted">
+              Vendors here tag themselves by the functions they have actually worked. That is the
+              whole difference between a shortlist worth reading and a directory.
             </p>
           </div>
-        ))}
+
+          <div className="occasions">
+            {Object.entries(groups).map(([group, events]) => (
+              <Link key={group} href="/hire" className={`occasion ${group}`}>
+                <h3>{label(group)}</h3>
+                {/*
+                  A subtitle on every card, in sentence case. It used to be a
+                  fallback rendered through the ".more" count style, so a group
+                  with no overflow -- Festival has exactly PREVIEW occasions --
+                  printed a whole sentence in uppercase letter-spaced small caps.
+                */}
+                <p className="occasion-blurb">{GROUP_BLURB[group] ?? ""}</p>
+                <ul>
+                  {events.slice(0, PREVIEW).map((event) => (
+                    <li key={event}>{label(event)}</li>
+                  ))}
+                </ul>
+                {events.length > PREVIEW && (
+                  <span className="more">+{events.length - PREVIEW} more</span>
+                )}
+              </Link>
+            ))}
+          </div>
+        </div>
       </section>
 
-      {Object.keys(groups).length > 0 && (
-        <section style={{ marginTop: 56 }}>
-          <h2>Every occasion, named properly</h2>
-          <p className="muted" style={{ maxWidth: 620 }}>
-            Not &ldquo;wedding&rdquo; and &ldquo;party&rdquo;. The vendors on this platform tag
-            themselves by the functions they have actually worked.
-          </p>
-          <div className="grid two" style={{ marginTop: 18 }}>
-            {Object.entries(groups).map(([group, events]) => (
-              <div className="card" key={group}>
-                <h3>{label(group)}</h3>
-                <div className="row" style={{ gap: 7 }}>
-                  {events.map((event) => (
-                    <span className="pill tag" key={event}>
-                      {label(event)}
-                    </span>
-                  ))}
-                </div>
+      <section className="bleed band dark">
+        <div className="shell">
+          <div className="band-head">
+            <span className="eyebrow">How it works</span>
+            <h2>Three steps, and the money is safe through all of them.</h2>
+          </div>
+          <div className="steps">
+            {STEPS.map((step, index) => (
+              <div className="step" key={step.title}>
+                <span className="num">{String(index + 1).padStart(2, "0")}</span>
+                <h3>{step.title}</h3>
+                <p>{step.body}</p>
               </div>
             ))}
           </div>
-        </section>
-      )}
+        </div>
+      </section>
+
+      <section className="bleed band paper">
+        <div className="shell">
+          <div className="band-head">
+            <span className="eyebrow" style={{ color: "var(--maroon)" }}>
+              Who you can book
+            </span>
+            <h2>Every speciality judged on its own craft.</h2>
+          </div>
+          {/*
+            Eight, not seventeen. A full taxonomy on the front door is a wall,
+            and seventeen identical placeholder tiles read as a loading state
+            rather than a catalogue. Every marketplace in this category shows a
+            handful and links to the rest.
+          */}
+          <div className="crew">
+            {featured.map((speciality, index) => (
+              <Link
+                key={speciality.slug}
+                href={`/hire/dallas-fort-worth/${speciality.slug}`}
+                className="crew-card"
+              >
+                {/* The slot real portfolio work drops into. Tinted per card so a
+                    row of them reads as a set rather than as eight copies. */}
+                <div className={`crew-shot tint-${index % 8}`} aria-hidden="true" />
+                <div className="crew-body">
+                  <strong style={{ textTransform: "capitalize" }}>{speciality.noun}</strong>
+                  <small>{speciality.events.slice(0, 2).map(label).join(" · ")}</small>
+                </div>
+              </Link>
+            ))}
+          </div>
+          <p style={{ marginTop: 18 }}>
+            <Link href="/hire" className="btn secondary">
+              See all {SPECIALITIES.length} specialities
+            </Link>
+          </p>
+
+          <div className="band-head" style={{ marginTop: 44, marginBottom: 0 }}>
+            <span className="eyebrow" style={{ color: "var(--maroon)" }}>
+              Where
+            </span>
+            <div className="metro-strip">
+              {METROS.map((metro) => (
+                <Link key={metro.slug} href={`/hire/${metro.slug}`}>
+                  {metro.name}
+                </Link>
+              ))}
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section className="bleed band dark">
+        <div className="shell">
+          <div className="band-head">
+            <span className="eyebrow">Why this artist, and not that one</span>
+            <h2>The ranking is published, not a black box.</h2>
+            <p>
+              Every other marketplace hands you a list. None of them will tell you why the
+              person at the top is at the top. These are the exact weights the match engine
+              uses &mdash; and placement is not for sale, which is a claim anyone can make and
+              this is the receipt.
+            </p>
+          </div>
+          <div className="weights">
+            {MATCH_WEIGHTS.map((factor) => (
+              <div className="weight" key={factor.key}>
+                <span className="weight-name">{factor.label}</span>
+                <span className="weight-pct">{Math.round(factor.weight * 100)}%</span>
+                <span className="weight-track">
+                  {/* Scaled against the largest weight so the bars use the full
+                      width; the number beside each one is the real figure. */}
+                  <i style={{ width: `${(factor.weight / MATCH_WEIGHTS[0]!.weight) * 100}%` }} />
+                </span>
+                <p className="weight-why">{factor.why}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      <section className="bleed band darker">
+        <div className="shell promise">
+          <div>
+            <span className="eyebrow">The part nobody enjoys</span>
+            <h2
+              style={{
+                fontFamily: "var(--serif)",
+                fontSize: "clamp(1.7rem, 3.4vw, 2.3rem)",
+                color: "#fffaf2",
+                letterSpacing: "-0.02em",
+                margin: "12px 0 10px",
+              }}
+            >
+              Money, handled so you do not have to trust anyone.
+            </h2>
+            <p style={{ color: "rgba(253,246,236,0.72)" }}>
+              A deposit funds an escrow before the date is held. The vendor knows they will be
+              paid; you know the work happens first. Neither side is chasing the other.
+            </p>
+            <Link href="/gigs/new" className="btn gold" style={{ marginTop: 8 }}>
+              Post a gig
+            </Link>
+          </div>
+          <ul className="promise-list">
+            {PROMISES.map((promise) => (
+              <li key={promise.title}>
+                <strong>{promise.title}</strong>
+                <span>{promise.body}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      </section>
     </>
   );
 }
