@@ -86,6 +86,7 @@ function aGig(hostId: string): Gig {
       specialty: "mua",
       eventDate: "2027-06-20",
       venue: FRISCO,
+      venueAddress: "8000 WARREN PKWY, FRISCO, TX, 75034",
       metroId: "dfw",
       budgetMinCents: 40_000,
       budgetMaxCents: 90_000,
@@ -213,6 +214,61 @@ test("a gig round-trips with its tags, languages and brief", { skip }, async () 
 
   const loaded = await store.gigs.byId(gig.id);
   assert.deepEqual(loaded?.brief, created.brief);
+});
+
+test("the resolved venue address survives the round trip", { skip }, async () => {
+  // The address shares its INSERT with the metro code and the budgets, and a
+  // mis-numbered parameter would land it in the wrong column while every other
+  // assertion here still passed. Read the columns back individually.
+  const host = aUser();
+  await store.users.create(host);
+  const gig = aGig(host.id);
+  await store.gigs.create(gig);
+
+  const loaded = await store.gigs.byId(gig.id);
+  assert.equal(loaded?.brief.venueAddress, "8000 WARREN PKWY, FRISCO, TX, 75034");
+  assert.equal(loaded?.brief.metroId, "dfw");
+  assert.equal(loaded?.brief.budgetMinCents, 40_000);
+  assert.equal(loaded?.brief.budgetMaxCents, 90_000);
+  assert.equal(loaded?.brief.notes, "Morning call time.");
+
+  const rows = await db.query<{ venue_address: string; metro_code: string }>(
+    "SELECT venue_address, metro_code FROM gigs WHERE id = $1",
+    [gig.id],
+  );
+  assert.equal(rows[0]?.venue_address, "8000 WARREN PKWY, FRISCO, TX, 75034");
+  assert.equal(rows[0]?.metro_code, "dfw");
+});
+
+test("an updated gig keeps its venue address", { skip }, async () => {
+  // The UPDATE renumbers every parameter after the venue, so it is a separate
+  // chance to shift a value one column sideways.
+  const host = aUser();
+  await store.users.create(host);
+  const gig = await store.gigs.create(aGig(host.id));
+
+  gig.state = "Open";
+  gig.applicationCount = 3;
+  await store.gigs.save(gig);
+
+  const loaded = await store.gigs.byId(gig.id);
+  assert.equal(loaded?.state, "Open");
+  assert.equal(loaded?.applicationCount, 3);
+  assert.equal(loaded?.brief.venueAddress, "8000 WARREN PKWY, FRISCO, TX, 75034");
+  assert.equal(loaded?.brief.metroId, "dfw");
+  assert.equal(loaded?.brief.notes, "Morning call time.");
+});
+
+test("a gig posted without an address keeps the column null, not the string \"null\"", { skip }, async () => {
+  const host = aUser();
+  await store.users.create(host);
+  const gig = aGig(host.id);
+  const { venueAddress: _dropped, ...briefWithoutAddress } = gig.brief;
+  const created = await store.gigs.create({ ...gig, brief: briefWithoutAddress });
+
+  assert.equal(created.brief.venueAddress, undefined);
+  const loaded = await store.gigs.byId(gig.id);
+  assert.equal(loaded?.brief.venueAddress, undefined);
 });
 
 test("the transition log is appended to, never rewritten", { skip }, async () => {

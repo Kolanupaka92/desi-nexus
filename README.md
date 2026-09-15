@@ -129,6 +129,16 @@ satisfy it. An attacker with a stolen password gets a read-only session.
 **The gig lifecycle is a guarded transition table**, not conditionals in route
 handlers, because money moves on some of those edges.
 
+**Venues are geocoded server-side, from a street address.** Never in the
+browser: the resolved point decides the metro, feeds 22% of the match score and
+is what every mile of travel is billed from, so a client that can post its own
+coordinates can post ones that flatter its own quote. A city name alone is
+refused, because a city centroid puts every venue in the metro at the same point
+— which makes proximity contribute nothing and every intra-metro travel fee
+zero. In development the fake geocoder scatters addresses deterministically
+within their real city rather than returning one fixed point, so proximity
+scoring is exercised rather than quietly bypassed.
+
 **Cultural fit is the heaviest match weight (0.30).** A MUA who does South
 Indian bridal is not interchangeable with one who does Punjabi Sikh bridal, and
 booking the wrong one is the most common way a function is ruined. Adjacent

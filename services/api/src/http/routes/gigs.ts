@@ -17,20 +17,21 @@ import {
   type GigState,
 } from "../../domain/gig.js";
 import { isCrewSpecialty, isEventType } from "../../domain/taxonomy.js";
-import { nearestMetro, withinPilotFootprint } from "../../domain/geo.js";
+import { nearestMetro, withinPilotFootprint, type LatLng } from "../../domain/geo.js";
+import { GeocodeError, type Geocoder } from "../../infra/geocode/index.js";
 import { planNotificationWaves, rankCandidates } from "../../domain/matching.js";
 import { TOPICS } from "../../events/bus.js";
 import type { AppDeps } from "../../app.js";
 
 export function registerGigRoutes(router: Router, deps: AppDeps): void {
-  const { config, store, bus } = deps;
+  const { config, store, bus, geocoder } = deps;
   const requireAuth = authenticate(config.tokenSecret);
 
   router.post(
     "/v1/gigs",
     async (ctx) => {
       const hostId = ctx.auth?.sub as string;
-      const brief = parseBrief(ctx.body);
+      const brief = await parseBrief(ctx.body, geocoder);
       const now = new Date().toISOString();
 
       const gig: Gig = {
@@ -336,7 +337,7 @@ export function registerGigRoutes(router: Router, deps: AppDeps): void {
   );
 }
 
-function parseBrief(body: unknown): GigBrief {
+async function parseBrief(body: unknown, geocoder: Geocoder): Promise<GigBrief> {
   if (!isObject(body)) throw new HttpError(400, "invalid_request", "a gig brief is required");
   const eventType = body.eventType;
   const specialty = body.specialty;
@@ -346,11 +347,7 @@ function parseBrief(body: unknown): GigBrief {
   if (typeof specialty !== "string" || !isCrewSpecialty(specialty)) {
     throw new HttpError(400, "invalid_request", `unknown speciality: ${String(specialty)}`);
   }
-  const venue = body.venue;
-  if (!isObject(venue) || typeof venue.lat !== "number" || typeof venue.lng !== "number") {
-    throw new HttpError(400, "invalid_request", "a venue latitude and longitude are required");
-  }
-  const venuePoint = { lat: venue.lat, lng: venue.lng };
+  const { point: venuePoint, address: venueAddress } = await resolveVenue(body, geocoder);
   if (!withinPilotFootprint(venuePoint)) {
     throw new HttpError(400, "outside_footprint", "that venue is outside the Texas pilot footprint");
   }
@@ -360,6 +357,7 @@ function parseBrief(body: unknown): GigBrief {
     specialty,
     eventDate: typeof body.eventDate === "string" ? body.eventDate : "",
     venue: venuePoint,
+    ...(venueAddress ? { venueAddress } : {}),
     metroId: nearestMetro(venuePoint).metro.id,
     budgetMinCents: typeof body.budgetMinCents === "number" ? body.budgetMinCents : 0,
     budgetMaxCents: typeof body.budgetMaxCents === "number" ? body.budgetMaxCents : 0,
@@ -377,6 +375,50 @@ function parseBrief(body: unknown): GigBrief {
     );
   }
   return brief;
+}
+
+/**
+ * Work out where the event actually is.
+ *
+ * A host sends an address and the service resolves it; an API client may send
+ * coordinates directly, which is how a partner integration that already holds a
+ * venue's location avoids a pointless round trip. The address path is the one
+ * the web app uses, because resolving in the browser would let a caller post
+ * whatever coordinates flatter its own travel quote.
+ */
+async function resolveVenue(
+  body: Record<string, unknown>,
+  geocoder: Geocoder,
+): Promise<{ point: LatLng; address?: string }> {
+  const venue = body.venue;
+  if (isObject(venue) && typeof venue.lat === "number" && typeof venue.lng === "number") {
+    return {
+      point: { lat: venue.lat, lng: venue.lng },
+      ...(typeof body.venueAddress === "string" && body.venueAddress.trim()
+        ? { address: body.venueAddress.trim().slice(0, 500) }
+        : {}),
+    };
+  }
+
+  const address = body.venueAddress;
+  if (typeof address !== "string" || address.trim().length === 0) {
+    throw new HttpError(400, "invalid_request", "a venue address is required");
+  }
+
+  try {
+    const resolved = await geocoder.geocode(address.trim().slice(0, 500));
+    return { point: resolved.point, address: resolved.formattedAddress };
+  } catch (error) {
+    if (error instanceof GeocodeError) {
+      // The host can act on every one of these except an outage, so the reason
+      // travels intact rather than collapsing into "bad request".
+      const status = error.code === "unavailable" ? 503 : 400;
+      throw new HttpError(status, `address_${error.code}`, error.message, {
+        ...(error.candidates.length > 0 ? { candidates: error.candidates } : {}),
+      });
+    }
+    throw error;
+  }
 }
 
 async function loadGig(store: AppDeps["store"], gigId: string): Promise<Gig> {

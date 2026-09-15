@@ -76,6 +76,8 @@ export interface GigBrief {
   /** ISO date of the event, e.g. "2026-11-14". */
   readonly eventDate: string;
   readonly venue: LatLng;
+  /** The address as the geocoder resolved it, shown back to both sides. */
+  readonly venueAddress?: string;
   readonly metroId: string;
   readonly budgetMinCents: Cents;
   readonly budgetMaxCents: Cents;

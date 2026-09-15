@@ -102,6 +102,7 @@ export interface GigBrief {
   readonly specialty: string;
   readonly eventDate: string;
   readonly venue: { lat: number; lng: number };
+  readonly venueAddress?: string;
   readonly metroId: string;
   readonly budgetMinCents: number;
   readonly budgetMaxCents: number;

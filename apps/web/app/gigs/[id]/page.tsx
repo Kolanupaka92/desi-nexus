@@ -70,6 +70,16 @@ export default async function GigPage({ params }: { params: Promise<{ id: string
           </div>
         </div>
 
+        <div style={{ marginTop: 14 }}>
+          <p className="faint" style={{ margin: 0 }}>Venue</p>
+          {/*
+            The address as the geocoder read it, not as it was typed. A host who
+            mistyped a street number sees a plausible wrong address here rather
+            than discovering it when the vendor drives to the wrong house.
+          */}
+          <p style={{ margin: 0 }}>{gig.brief.venueAddress ?? "Not specified"}</p>
+        </div>
+
         {gig.brief.culturalTags.length > 0 && (
           <div style={{ marginTop: 14 }}>
             <p className="faint" style={{ marginBottom: 6 }}>Style and tradition</p>
