@@ -12,7 +12,7 @@
  */
 import test, { after, before, beforeEach } from "node:test";
 import assert from "node:assert/strict";
-import { connect, routed, type Database } from "../src/infra/postgres/db.js";
+import { connect, routed, withUnitOfWork, type Database } from "../src/infra/postgres/db.js";
 import { createPostgresStore } from "../src/infra/postgres/store.js";
 import { createTestSchema, migration, skipWithoutDatabase, truncateAll, TEST_DATABASE_URL } from "./db.js";
 import { harness, onboard, payoutReadyVendor, postWebhook, BRIEF, FRISCO, type Harness } from "./helpers.js";
@@ -65,6 +65,22 @@ beforeEach(async () => {
 function h(): Harness {
   return harness(store);
 }
+
+test("a unit of work does not lend its connection to a handle pinned elsewhere", { skip }, async () => {
+  // A unit of work binds the statements underneath it, which is what makes the
+  // outbox row commit with the state change it describes. That binding must
+  // stop at the privilege boundary. The system connection is exempt from every
+  // policy; a handle pinned to a user that borrowed it inside a unit of work
+  // would silently run that user's statements unpoliced, which is a read of
+  // another host's gigs away from being a tenant leak.
+  const borrowed = await withUnitOfWork(systemDb, async () => {
+    const rows = await appDb
+      .asUser("11111111-1111-1111-1111-111111111111")
+      .query<{ role: string }>("SELECT current_user AS role");
+    return rows[0]?.role;
+  });
+  assert.equal(borrowed, "desi_nexus_app", "the pinned handle opened its own transaction");
+});
 
 test("the role the service connects as does not own the tables", { skip }, async () => {
   // If it did, every policy below would be bypassed and this file would pass

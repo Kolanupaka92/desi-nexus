@@ -10,7 +10,7 @@
 import test, { after, before, beforeEach } from "node:test";
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
-import type { Database } from "../src/infra/postgres/db.js";
+import { withUnitOfWork, type Database } from "../src/infra/postgres/db.js";
 import { createTestSchema, skipWithoutDatabase, truncateAll } from "./db.js";
 import { createPostgresStore } from "../src/infra/postgres/store.js";
 import type { Store } from "../src/infra/store.js";
@@ -238,6 +238,32 @@ test("the resolved venue address survives the round trip", { skip }, async () =>
   );
   assert.equal(rows[0]?.venue_address, "8000 WARREN PKWY, FRISCO, TX, 75034");
   assert.equal(rows[0]?.metro_code, "dfw");
+});
+
+test("a repository write joins an enclosing unit of work", { skip }, async () => {
+  // Every repository method that spans more than one table opens its own
+  // transaction. Nested inside a unit of work those have to join it rather than
+  // commit on their own: the gig-publish route saves the gig and writes the
+  // match events to the outbox in one unit, and a repository that committed
+  // independently would leave a gig live whose notification event rolled back
+  // -- the precise split the outbox exists to prevent.
+  const host = aUser();
+  await store.users.create(host);
+  const gig = await store.gigs.create(aGig(host.id));
+
+  gig.state = "Open";
+  gig.applicationCount = 7;
+  await assert.rejects(
+    withUnitOfWork(db, async () => {
+      await store.gigs.save(gig);
+      throw new Error("the event could not be published");
+    }),
+    /could not be published/,
+  );
+
+  const loaded = await store.gigs.byId(gig.id);
+  assert.equal(loaded?.state, "Draft", "the repository write rolled back with the unit");
+  assert.equal(loaded?.applicationCount, 0);
 });
 
 test("an updated gig keeps its venue address", { skip }, async () => {

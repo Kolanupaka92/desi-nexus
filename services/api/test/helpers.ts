@@ -34,7 +34,7 @@ export interface Harness {
   ): Promise<HttpResult>;
 }
 
-export function harness(store?: AppDeps["store"]): Harness {
+export function harness(store?: AppDeps["store"], extra: Partial<AppDeps> = {}): Harness {
   const stripe = new FakeStripeGateway();
   const geocoder = new FakeGeocoder();
   // A generous clock-free limiter, so the flow tests are not throttled.
@@ -44,6 +44,9 @@ export function harness(store?: AppDeps["store"]): Harness {
     geocoder,
     limiter: new InMemoryRateLimiter(() => Date.now()),
     ...(store ? { store } : {}),
+    // Last, so a test can substitute the real event bus or unit of work for
+    // the defaults this harness would otherwise pick.
+    ...extra,
   });
   const router = buildRouter(deps);
   let counter = 0;

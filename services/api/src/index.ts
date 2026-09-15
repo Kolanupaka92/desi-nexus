@@ -6,7 +6,7 @@
  * the sidecar. It must never be exposed directly.
  */
 import { createServer } from "node:http";
-import { buildDeps, buildRouter, createRequestListener, shutdownDeps } from "./app.js";
+import { buildDeps, buildRouter, createRequestListener, outboxRelay, shutdownDeps } from "./app.js";
 
 const port = Number(process.env.PORT ?? 8080);
 
@@ -34,6 +34,14 @@ const server = createServer(createRequestListener(buildRouter(deps)));
 
 server.listen(port, () => {
   console.log(`desi-nexus api listening on :${port}`);
+  // Events are durable the moment they are written; they are only delivered
+  // once something drains the outbox. Without this the table fills and no
+  // vendor is ever notified -- the silent version of the bug the outbox exists
+  // to prevent.
+  if (outboxRelay) {
+    outboxRelay.start();
+    console.log("outbox relay started");
+  }
 });
 
 for (const signal of ["SIGTERM", "SIGINT"] as const) {

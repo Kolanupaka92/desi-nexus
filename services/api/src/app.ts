@@ -15,12 +15,13 @@ import { registerDiscoveryRoutes } from "./http/routes/discovery.js";
 import { InMemoryRateLimiter, type RateLimiter } from "./infra/rateLimit.js";
 import { RedisRateLimiter } from "./infra/redisRateLimit.js";
 import { createInMemoryStore, type Store } from "./infra/store.js";
-import { connect, routed } from "./infra/postgres/db.js";
+import { connect, routed, withUnitOfWork, type Database } from "./infra/postgres/db.js";
 import { createPostgresStore } from "./infra/postgres/store.js";
 import type { StripeGateway } from "./infra/stripe/index.js";
 import { FakeStripeGateway } from "./infra/stripe/fake.js";
 import { liveStripeFromEnv } from "./infra/stripe/live.js";
 import { InMemoryEventBus, type EventBus } from "./events/bus.js";
+import { OutboxEventBus, OutboxRelay } from "./events/outbox.js";
 import type { Geocoder } from "./infra/geocode/index.js";
 import { CensusGeocoder } from "./infra/geocode/census.js";
 import { CachedGeocoder } from "./infra/geocode/cached.js";
@@ -41,6 +42,14 @@ export interface AppDeps {
   readonly bus: EventBus;
   readonly limiter: RateLimiter;
   readonly geocoder: Geocoder;
+  /**
+   * Run a state change and the event describing it in one transaction.
+   *
+   * A no-op without a database, where there is nothing to be atomic about. Use
+   * it only around work that makes no external calls: a Stripe round trip
+   * inside a transaction holds a pooled connection across the network.
+   */
+  readonly unitOfWork: <T>(fn: () => Promise<T>) => Promise<T>;
 }
 
 /**
@@ -50,25 +59,73 @@ export interface AppDeps {
  */
 const owned: Array<() => Promise<void>> = [];
 
+/**
+ * The database this process opened, if it opened one.
+ *
+ * Set by defaultStore() and read by defaultBus(), so the outbox writes through
+ * the same handle the repositories do -- which is what lets an event share the
+ * transaction of the state change it describes.
+ */
+let postgres: Database | undefined;
+
+/** The relay draining the outbox, when there is one. Exposed so index.ts can start it. */
+export let outboxRelay: OutboxRelay | undefined;
+
 export function buildDeps(overrides: Partial<AppDeps> = {}): AppDeps {
   const config: AppConfig = overrides.config ?? {
     tokenSecret: process.env.DESI_NEXUS_TOKEN_SECRET ?? randomUUID(),
     webhookSigningSecret: process.env.DESI_NEXUS_WEBHOOK_SECRET ?? randomUUID(),
     exposeDevSecrets: process.env.NODE_ENV !== "production",
   };
+  // Order matters: defaultStore() is what opens the connection that
+  // defaultBus() needs in order to write to the outbox.
+  const store = overrides.store ?? defaultStore();
   return {
     config,
-    store: overrides.store ?? defaultStore(),
+    store,
     stripe: overrides.stripe ?? defaultStripeGateway(),
-    bus: overrides.bus ?? new InMemoryEventBus(),
+    bus: overrides.bus ?? defaultBus(),
     limiter: overrides.limiter ?? defaultRateLimiter(),
     geocoder: overrides.geocoder ?? defaultGeocoder(),
+    unitOfWork:
+      overrides.unitOfWork ??
+      (postgres ? (fn) => withUnitOfWork(postgres as Database, fn) : (fn) => fn()),
   };
+}
+
+/**
+ * The outbox when there is a database, the in-memory bus otherwise.
+ *
+ * Production refuses the in-memory bus for the reason the outbox exists: a
+ * process that dies between publishing a gig and notifying the matched vendors
+ * loses the notification permanently, and nothing in the system knows it
+ * happened. A marketplace that silently fails to tell anyone about a booking is
+ * worse than one that will not start.
+ *
+ * Must be called after defaultStore(), which is what opens the connection.
+ */
+function defaultBus(): EventBus {
+  if (!postgres) {
+    if (process.env.NODE_ENV === "production") {
+      throw new Error(
+        "an outbox requires a database: without one a lost notification is silent and permanent",
+      );
+    }
+    return new InMemoryEventBus();
+  }
+  const bus = new OutboxEventBus(postgres);
+  outboxRelay = new OutboxRelay(postgres, bus, {
+    ...(process.env.OUTBOX_POLL_MS ? { intervalMs: Number(process.env.OUTBOX_POLL_MS) } : {}),
+  });
+  owned.push(async () => outboxRelay?.stop());
+  return bus;
 }
 
 export async function shutdownDeps(): Promise<void> {
   await Promise.allSettled(owned.map((close) => close()));
   owned.length = 0;
+  postgres = undefined;
+  outboxRelay = undefined;
 }
 
 /**
@@ -110,6 +167,7 @@ function defaultStore(): Store {
 
   const db = routed(app, system);
   owned.push(() => db.close());
+  postgres = db;
   return createPostgresStore(db);
 }
 
