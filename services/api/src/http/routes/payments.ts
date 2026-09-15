@@ -7,6 +7,7 @@
  * a payment actually succeeded.
  */
 import { randomUUID } from "node:crypto";
+import { runAsSystem } from "../../infra/postgres/db.js";
 import { HttpError, type Router } from "../router.js";
 import { authenticate, field, isNumber, isString, rateLimit, requireMfa, requireRole } from "../middleware.js";
 import { applyTransition, hoursUntil } from "./gigs.js";
@@ -408,7 +409,9 @@ export function registerPaymentRoutes(router: Router, deps: AppDeps): void {
    * capture. The body is read raw because re-serialised JSON will not match the
    * signature.
    */
-  router.post("/v1/webhooks/stripe", async (ctx) => {
+  // Wrapped as system: this request has no session to act as, and it has to
+  // find the escrow by payment intent before it could know whose it is.
+  router.post("/v1/webhooks/stripe", (ctx) => runAsSystem(async () => {
     const signature = ctx.headers["stripe-signature"];
     const header = Array.isArray(signature) ? signature[0] : signature;
     if (!header || !verifyWebhookSignature(ctx.rawBody, header, config.webhookSigningSecret)) {
@@ -464,15 +467,19 @@ export function registerPaymentRoutes(router: Router, deps: AppDeps): void {
     );
 
     return { status: 200, body: { received: true, handled: true, escrowState: escrow.state } };
-  });
+  }));
 
   /**
    * The auto-release sweep, invoked by the scheduler. Vendors are not left
    * waiting on a host who simply stopped replying.
    */
+  // Wrapped as system for a different reason than the webhook: this one does
+  // authenticate, but as an admin, who is neither the host nor the vendor and
+  // so matches neither escrow policy. Authorisation is the requireRole guard
+  // below; the exemption is only about which rows the query may reach.
   router.post(
     "/v1/internal/escrow/auto-release",
-    async (ctx) => {
+    (ctx) => runAsSystem(async () => {
       const escrowId = field(ctx, "escrowId", isString);
       const hoursAwaiting = field(ctx, "hoursAwaitingSignoff", isNumber);
       if (hoursAwaiting < AUTO_RELEASE_HOURS) {
@@ -506,7 +513,7 @@ export function registerPaymentRoutes(router: Router, deps: AppDeps): void {
         await store.gigs.save(gig);
       }
       return { status: 200, body: { escrow: publicEscrow(escrow), released: true } };
-    },
+    }),
     requireAuth,
     requireRole("admin"),
   );

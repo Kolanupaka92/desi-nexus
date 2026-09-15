@@ -6,6 +6,7 @@
  * that moves money than the convenience of a middleware ecosystem.
  */
 import type { IncomingMessage, ServerResponse } from "node:http";
+import { runAsUser } from "../infra/postgres/db.js";
 import type { TokenClaims } from "../infra/tokens.js";
 
 export interface RequestContext {
@@ -115,7 +116,14 @@ export class Router {
       if (i <= index) throw new Error("next() called more than once");
       index = i;
       const middleware = chain[i];
-      if (!middleware) return found.route.handler(full);
+      if (!middleware) {
+        // Every middleware has run by now, so `auth` is populated if this route
+        // authenticates. Binding the acting user here rather than inside each
+        // handler means a route cannot forget to do it -- and a route that has
+        // no user simply runs with none, which the policies refuse.
+        const userId = full.auth?.sub;
+        return userId ? runAsUser(userId, () => found.route.handler(full)) : found.route.handler(full);
+      }
       return middleware(full, () => dispatch(i + 1));
     };
     return dispatch(0);

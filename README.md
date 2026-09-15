@@ -129,6 +129,18 @@ satisfy it. An attacker with a stolen password gets a read-only session.
 **The gig lifecycle is a guarded transition table**, not conditionals in route
 handlers, because money moves on some of those edges.
 
+**Row-level security binds the application, and the exemption is a separate
+login.** The service connects as a role that does not own the tables, and the
+acting user travels in async context so no repository call has to remember to
+pass it -- forgetting is safe in the direction that matters, because with no
+user the policies match nothing and the write is refused rather than run
+unscoped. Two paths genuinely belong to nobody: the Stripe webhook, which is
+authenticated by signature and must find an escrow by payment intent before it
+could know whose it is, and the auto-release sweep, which runs as an admin who
+is neither party. Those connect as `desi_nexus_system`, which the policies
+exempt by role and nothing else -- it still cannot delete a row or rewrite the
+ledger.
+
 **Venues are geocoded server-side, from a street address.** Never in the
 browser: the resolved point decides the metro, feeds 22% of the match score and
 is what every mile of travel is billed from, so a client that can post its own

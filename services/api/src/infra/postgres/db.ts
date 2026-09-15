@@ -13,7 +13,16 @@
  *    it is scoped to that transaction and cannot leak to the next borrower of a
  *    pooled connection. A GUC left set on a returned connection is how one
  *    tenant ends up reading another's rows.
+ *
+ * 3. The acting identity travels in async context rather than being threaded
+ *    through every repository call. `runAsUser` wraps a request; every query
+ *    underneath it -- however deep -- runs as that user without any route
+ *    having to remember to pass an id. Forgetting to wrap is safe in the
+ *    direction that matters: with no actor the GUC is unset, so the policies
+ *    match nothing and the write is refused. The failure mode is a denial, not
+ *    a leak.
  */
+import { AsyncLocalStorage } from "node:async_hooks";
 import { Pool, type PoolClient, type QueryResultRow } from "pg";
 
 export interface Database {
@@ -30,6 +39,44 @@ export interface Database {
 
 /** Set once per transaction; `true` makes it local to that transaction. */
 const SET_USER = "SELECT set_config('app.current_user_id', $1, true)";
+
+/**
+ * Who a query is running on behalf of.
+ *
+ * `system` is for the paths that genuinely belong to nobody -- the Stripe
+ * webhook, authenticated by signature rather than session. It cannot borrow the
+ * host's identity, because it has to find the escrow by payment intent before
+ * it knows who the host is, and that lookup is itself policed.
+ */
+export type DbActor =
+  | { readonly kind: "user"; readonly userId: string }
+  | { readonly kind: "system" };
+
+const actors = new AsyncLocalStorage<DbActor>();
+
+/**
+ * Run `fn` with every query underneath it acting as `userId`.
+ *
+ * Generic over the return rather than pinned to a Promise: a handler is free to
+ * answer synchronously, and requiring one here would push a pointless `async`
+ * onto every route that does.
+ */
+export function runAsUser<T>(userId: string, fn: () => T): T {
+  return actors.run({ kind: "user", userId }, fn);
+}
+
+/**
+ * Run `fn` against the system connection, which the row-level security policies
+ * exempt. Reach for this only where there is no user to act as; it is the one
+ * way past the policies, so it should be greppable and rare.
+ */
+export function runAsSystem<T>(fn: () => T): T {
+  return actors.run({ kind: "system" }, fn);
+}
+
+export function currentActor(): DbActor | undefined {
+  return actors.getStore();
+}
 
 class PgDatabase implements Database {
   constructor(
@@ -107,6 +154,59 @@ export interface ConnectOptions {
    * each other's rows.
    */
   readonly searchPath?: readonly string[];
+}
+
+/**
+ * One handle over two connections, choosing between them by whoever is acting.
+ *
+ * The application connection is bound by the policies and carries the acting
+ * user; the system connection is exempt. Keeping them as separate logins is the
+ * point -- a leaked application password does not carry the exemption with it.
+ */
+class RoutedDatabase implements Database {
+  constructor(
+    private readonly app: Database,
+    private readonly system: Database,
+  ) {}
+
+  private target(): Database {
+    const actor = actors.getStore();
+    if (actor?.kind === "system") return this.system;
+    // No actor: the application connection with no GUC set, so the policies
+    // match nothing. An unwrapped write is refused rather than run unscoped.
+    if (actor?.kind === "user") return this.app.asUser(actor.userId);
+    return this.app;
+  }
+
+  query<T extends QueryResultRow = QueryResultRow>(
+    text: string,
+    params?: readonly unknown[],
+  ): Promise<T[]> {
+    return this.target().query<T>(text, params);
+  }
+
+  withTransaction<T>(fn: (tx: Database) => Promise<T>): Promise<T> {
+    return this.target().withTransaction(fn);
+  }
+
+  asUser(userId: string | undefined): Database {
+    return this.app.asUser(userId);
+  }
+
+  async close(): Promise<void> {
+    await Promise.all([this.app.close(), this.system.close()]);
+  }
+}
+
+/**
+ * Pair an application connection with a system one. When no system connection
+ * is configured the application's own is used for both, which is right for a
+ * developer running as the schema owner and refused in production by the guard
+ * in app.ts -- a service that silently ran every webhook through the policed
+ * connection would fail to record captured payments.
+ */
+export function routed(app: Database, system?: Database): Database {
+  return system ? new RoutedDatabase(app, system) : app;
 }
 
 export function connect(options: ConnectOptions): Database {
