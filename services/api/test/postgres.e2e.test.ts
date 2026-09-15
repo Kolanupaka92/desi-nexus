@@ -10,10 +10,12 @@
  */
 import test, { after, before, beforeEach } from "node:test";
 import assert from "node:assert/strict";
-import type { Database } from "../src/infra/postgres/db.js";
+import { withUnitOfWork, type Database } from "../src/infra/postgres/db.js";
 import { createTestSchema, skipWithoutDatabase, truncateAll } from "./db.js";
 import { createPostgresStore } from "../src/infra/postgres/store.js";
 import { harness, onboard, payoutReadyVendor, postWebhook, BRIEF, FRISCO } from "./helpers.js";
+import { OutboxEventBus } from "../src/events/outbox.js";
+import { TOPICS } from "../src/events/bus.js";
 
 const skip = skipWithoutDatabase;
 
@@ -38,6 +40,78 @@ function pgHarness() {
   return harness(createPostgresStore(db));
 }
 
+
+const outboxRows = async (): Promise<{ topic: string }[]> =>
+  db.query<{ topic: string }>("SELECT topic FROM event_outbox ORDER BY id");
+
+/** The harness, wired the way production is: real outbox, real unit of work. */
+function outboxHarness() {
+  const store = createPostgresStore(db);
+  return harness(store, {
+    bus: new OutboxEventBus(db),
+    unitOfWork: (fn) => withUnitOfWork(db, fn),
+  });
+}
+
+test("publishing a gig writes its match events to the outbox", { skip }, async () => {
+  // The match waves are the product's central promise -- a vendor hears about a
+  // gig because publishing it emits these. With the in-memory bus they existed
+  // only for as long as the process did.
+  const h = outboxHarness();
+  const host = await onboard(h, { email: "ob-host@frisco.test", roles: ["host"], homeBase: FRISCO });
+  await payoutReadyVendor(h, "ob-mua@plano.test");
+
+  const created = await h.call("POST", "/v1/gigs", { token: host.token, body: BRIEF });
+  assert.equal(created.status, 201, JSON.stringify(created.body));
+  const gigId = (created.body as { gig: { id: string } }).gig.id;
+
+  const published = await h.call("POST", `/v1/gigs/${gigId}/publish`, { token: host.token });
+  assert.equal(published.status, 200, JSON.stringify(published.body));
+
+  const topics = (await outboxRows()).map((row) => row.topic);
+  assert.ok(topics.includes(TOPICS.gigPosted), "the gig going live is recorded");
+  assert.ok(
+    topics.includes(TOPICS.matchWaveScheduled),
+    "the vendors to notify are recorded, not merely computed",
+  );
+});
+
+test("a gig publish that fails leaves behind neither the state change nor its events", { skip }, async () => {
+  // Without the route wrapping its writes in a unit of work, each of them
+  // commits on its own: the gig goes Open and the events announcing it roll
+  // back, or the reverse. Every other assertion in this file looks identical
+  // either way, which is what makes this one worth having.
+  const store = createPostgresStore(db);
+  const h = harness(store, {
+    bus: new OutboxEventBus(db),
+    // Fails once the route's work is done but before the unit commits, which is
+    // exactly the window the outbox exists to close.
+    unitOfWork: (fn) =>
+      withUnitOfWork(db, async () => {
+        await fn();
+        throw new Error("the unit of work failed at the last moment");
+      }),
+  });
+  const host = await onboard(h, { email: "atomic-host@frisco.test", roles: ["host"], homeBase: FRISCO });
+  await payoutReadyVendor(h, "atomic-mua@plano.test");
+
+  const created = await h.call("POST", "/v1/gigs", { token: host.token, body: BRIEF });
+  const gigId = (created.body as { gig: { id: string } }).gig.id;
+
+  const published = await h.call("POST", `/v1/gigs/${gigId}/publish`, { token: host.token });
+  assert.equal(published.status, 500, "the failure is not swallowed");
+
+  // Onboarding published its own events before any of this and they committed
+  // normally; it is the publish's own events that must be gone.
+  const topics = (await outboxRows()).map((row) => row.topic);
+  assert.deepEqual(
+    topics.filter((topic) => topic === TOPICS.gigPosted || topic === TOPICS.matchWaveScheduled),
+    [],
+    "no event from the failed publish survives the rollback",
+  );
+  const after = await store.gigs.byId(gigId);
+  assert.equal(after?.state, "Draft", "and the gig did not go live either");
+});
 
 test("the whole booking flow works identically on PostgreSQL", { skip }, async () => {
   const h = pgHarness();

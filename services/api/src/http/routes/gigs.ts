@@ -24,7 +24,7 @@ import { TOPICS } from "../../events/bus.js";
 import type { AppDeps } from "../../app.js";
 
 export function registerGigRoutes(router: Router, deps: AppDeps): void {
-  const { config, store, bus, geocoder } = deps;
+  const { config, store, bus, geocoder, unitOfWork } = deps;
   const requireAuth = authenticate(config.tokenSecret);
 
   router.post(
@@ -144,17 +144,28 @@ export function registerGigRoutes(router: Router, deps: AppDeps): void {
       const gig = await loadGig(store, ctx.params.gigId as string);
       requireOwner(gig.hostId, ctx.auth?.sub as string);
       applyTransition(gig, "Open", "host", ctx.auth?.sub as string);
-      await store.gigs.save(gig);
 
-      const profiles = await store.profiles.crewBySpecialty(gig.brief.specialty);
-      const candidates = await Promise.all(profiles.map((profile) => toCandidate(profile, store)));
-      const ranked = rankCandidates(candidates, gig.brief);
-      const waves = planNotificationWaves(ranked, { hoursUntilEvent: hoursUntil(gig.brief.eventDate) });
+      // One commit. Without it there is a window where the gig is Open and the
+      // events that tell matched vendors about it are gone -- the gig is live,
+      // nobody was notified, and nothing in the system knows. Everything inside
+      // is database work or pure computation; no external call holds the
+      // connection open.
+      const { ranked, waves } = await unitOfWork(async () => {
+        await store.gigs.save(gig);
 
-      await bus.publish(TOPICS.gigPosted, gig.id, { gigId: gig.id, brief: gig.brief }, ctx.traceId);
-      for (const wave of waves) {
-        await bus.publish(TOPICS.matchWaveScheduled, gig.id, { gigId: gig.id, ...wave }, ctx.traceId);
-      }
+        const profiles = await store.profiles.crewBySpecialty(gig.brief.specialty);
+        const candidates = await Promise.all(profiles.map((profile) => toCandidate(profile, store)));
+        const scored = rankCandidates(candidates, gig.brief);
+        const planned = planNotificationWaves(scored, {
+          hoursUntilEvent: hoursUntil(gig.brief.eventDate),
+        });
+
+        await bus.publish(TOPICS.gigPosted, gig.id, { gigId: gig.id, brief: gig.brief }, ctx.traceId);
+        for (const wave of planned) {
+          await bus.publish(TOPICS.matchWaveScheduled, gig.id, { gigId: gig.id, ...wave }, ctx.traceId);
+        }
+        return { ranked: scored, waves: planned };
+      });
 
       return {
         status: 200,

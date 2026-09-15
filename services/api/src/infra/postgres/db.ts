@@ -78,12 +78,64 @@ export function currentActor(): DbActor | undefined {
   return actors.getStore();
 }
 
+/**
+ * A transaction every query underneath it joins.
+ *
+ * This is what makes the outbox actually transactional. A route changes state
+ * and then publishes an event; in separate transactions there is a window where
+ * the gig is live and the event that tells vendors about it is gone, which is
+ * the exact failure the outbox pattern exists to prevent. Binding the
+ * transaction in async context means the repositories and the event bus land in
+ * one commit without either of them having to be passed a handle.
+ *
+ * Deliberately not applied to every mutating request. A handler that calls
+ * Stripe would then hold a database connection open across a network round
+ * trip, which trades a rare lost event for a common exhausted pool.
+ */
+const ambient = new AsyncLocalStorage<Database>();
+
+export function withUnitOfWork<T>(db: Database, fn: () => Promise<T>): Promise<T> {
+  // Already inside one: join it rather than nesting, so an inner failure rolls
+  // the whole unit back.
+  const existing = ambient.getStore();
+  if (existing) return fn();
+  return db.withTransaction((tx) => ambient.run(tx, fn));
+}
+
+export function currentUnitOfWork(): Database | undefined {
+  return ambient.getStore();
+}
+
 class PgDatabase implements Database {
   constructor(
     private readonly pool: Pool,
     private readonly client: PoolClient | undefined,
     private readonly userId: string | undefined,
   ) {}
+
+  /**
+   * The open unit of work this statement belongs in, if there is one.
+   *
+   * A unit of work opened above us binds every statement underneath it, even
+   * ones issued through a handle that knows nothing about it. Without this the
+   * guarantee held only for the routed handle, and `routed(app)` hands back a
+   * bare connection whenever no system connection is configured -- so in that
+   * configuration `withUnitOfWork` opened a transaction that nothing joined,
+   * and an event published beside a failed state change survived the rollback.
+   *
+   * A handle pinned to a specific user is the one case that does not join. Its
+   * statements are meant to run under that user's GUC, and quietly running them
+   * under someone else's would hand them the wrong row-level security scope --
+   * a wider one, if the unit belongs to the system connection.
+   */
+  private unitOfWork(): Database | undefined {
+    const unit = ambient.getStore();
+    if (!unit || unit === (this as Database)) return undefined;
+    if (this.userId !== undefined && unit instanceof PgDatabase && unit.userId !== this.userId) {
+      return undefined;
+    }
+    return unit;
+  }
 
   async query<T extends QueryResultRow = QueryResultRow>(
     text: string,
@@ -93,6 +145,8 @@ class PgDatabase implements Database {
       const result = await this.client.query<T>(text, params as unknown[]);
       return result.rows;
     }
+    const unit = this.unitOfWork();
+    if (unit) return unit.query<T>(text, params);
     // Outside a transaction the GUC still has to be scoped to this one
     // statement, which means borrowing a connection and wrapping it.
     if (this.userId !== undefined) {
@@ -106,6 +160,8 @@ class PgDatabase implements Database {
     // Already inside one: join it rather than opening a nested transaction,
     // so an inner failure rolls the whole unit of work back.
     if (this.client) return fn(this);
+    const unit = this.unitOfWork();
+    if (unit) return unit.withTransaction(fn);
 
     const client = await this.pool.connect();
     const tx = new PgDatabase(this.pool, client, this.userId);
@@ -170,6 +226,11 @@ class RoutedDatabase implements Database {
   ) {}
 
   private target(): Database {
+    // An open unit of work wins: everything in it commits or rolls back
+    // together, including the outbox row.
+    const unit = ambient.getStore();
+    if (unit) return unit;
+
     const actor = actors.getStore();
     if (actor?.kind === "system") return this.system;
     // No actor: the application connection with no GUC set, so the policies
