@@ -201,3 +201,26 @@ th, td { text-align: left; padding: 10px 8px; border-bottom: 1px solid var(--lin
 th { font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.04em; color: var(--ink-faint); font-weight: 600; }
 
 .empty { text-align: center; padding: 40px 20px; color: var(--ink-faint); }
+
+/* --- Public, indexable pages ------------------------------------------- */
+
+.crumbs { padding-top: 18px; font-size: 0.84rem; }
+.crumbs a { color: var(--ink-faint); }
+.crumbs a:hover { color: var(--maroon); }
+
+/* The one paragraph under an h1. Larger than body, softer than ink. */
+.lede { font-size: 1.12rem; line-height: 1.65; color: var(--ink-soft); margin-top: 14px; }
+
+/* An unstyled list used as a row of pills. */
+.tags { display: flex; flex-wrap: wrap; gap: 8px; list-style: none; padding: 0; margin: 0; }
+.tags a { text-decoration: none; }
+
+/* A whole card that is a link. Kept distinct from .card so a plain card is
+   never given hover affordance it does not have. */
+.link-card { display: block; color: inherit; text-decoration: none; transition: border-color 120ms, box-shadow 120ms, transform 120ms; }
+.link-card:hover { border-color: var(--marigold); box-shadow: 0 6px 20px rgba(28, 25, 23, 0.09); transform: translateY(-1px); }
+.link-card strong { color: var(--ink); }
+
+/* The call to action at the bottom of a marketing page. */
+.accent-card { background: var(--marigold-soft); border-color: #e9d3b4; }
+.accent-card p { color: #6b3d08; }
