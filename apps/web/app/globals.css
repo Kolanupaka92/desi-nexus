@@ -91,7 +91,19 @@ p { margin: 0 0 1rem; }
 }
 .wordmark span { color: var(--marigold); }
 .masthead nav { display: flex; align-items: center; gap: 18px; font-size: 0.92rem; flex-wrap: wrap; }
-.masthead nav a { color: var(--ink-soft); }
+/*
+ * Plain nav links sat at 23px tall -- one pixel under the WCAG 2.2 minimum
+ * target size, which is exactly the kind of miss nobody catches by eye. Padding
+ * gives them a real tap box; the flex row keeps them aligned with the buttons
+ * beside them, which already clear it.
+ */
+.masthead nav a {
+  color: var(--ink-soft);
+  display: inline-flex;
+  align-items: center;
+  min-height: 32px;
+  padding: 0 2px;
+}
 
 .foot {
   border-top: 1px solid var(--line);
@@ -216,8 +228,20 @@ th { font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.04em; colo
 
 /* --- Public, indexable pages ------------------------------------------- */
 
-.crumbs { padding-top: 18px; font-size: 0.84rem; }
-.crumbs a { color: var(--ink-faint); }
+/*
+ * The crumb text is small on purpose; the tap target must not be. Padding
+ * inside the link, with a negative margin so the row's rhythm is unchanged,
+ * takes each one over the 24px floor (WCAG 2.2 "Target Size (Minimum)").
+ * Links inline in a sentence are exempt from that rule -- these are standalone
+ * navigation, so they are not.
+ */
+.crumbs { padding-top: 12px; font-size: 0.84rem; }
+.crumbs a {
+  color: var(--ink-faint);
+  display: inline-block;
+  padding: 6px 2px;
+  margin: -6px 0;
+}
 .crumbs a:hover { color: var(--maroon); }
 
 /* The one paragraph under an h1. Larger than body, softer than ink. */
@@ -513,3 +537,20 @@ th { font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.04em; colo
   text-decoration: none;
 }
 .metro-strip a:hover { border-color: var(--maroon); color: var(--maroon); text-decoration: none; }
+
+/*
+ * A heading -- or a table cell -- that is also a link is the primary way into
+ * that record, so it has to clear the 24px target-size floor even when its own
+ * line-height does not. h3 at 1.05rem/1.2 lands at 20px, which looks fine and is
+ * awkward to hit.
+ *
+ * The table case only failed on WIDE screens, which is the wrong way round from
+ * what you would guess: on a phone the title wraps to two lines and clears the
+ * floor by accident, and it is the desktop single-line version that falls short.
+ * Worth remembering that "checked it on mobile" does not cover this.
+ */
+h2 > a, h3 > a, td > a {
+  display: inline-block;
+  min-height: 24px;
+  line-height: 24px;
+}
