@@ -21,6 +21,17 @@
   --amber-soft: #fdf3d8;
   --amber-ink: #8a6212;
 
+  /* The jewel register the category actually lives in. The page above the fold
+     is dark and saturated; the working surfaces below it stay on paper so long
+     forms and gig briefs remain readable. */
+  --wine: #4a0e27;
+  --wine-deep: #26040f;
+  --wine-mid: #6b1636;
+  --gold: #c9a227;
+  --gold-bright: #e8c766;
+  --gold-soft: #f4e3b4;
+  --saffron: #f2a516;
+
   --radius: 10px;
   --radius-lg: 16px;
   --shadow: 0 1px 2px rgba(28, 25, 23, 0.05), 0 4px 16px rgba(28, 25, 23, 0.05);
@@ -33,6 +44,7 @@
 html, body {
   margin: 0;
   padding: 0;
+  overflow-x: hidden;
   background: var(--paper);
   color: var(--ink);
   font-family: var(--font);
@@ -224,3 +236,280 @@ th { font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.04em; colo
 /* The call to action at the bottom of a marketing page. */
 .accent-card { background: var(--marigold-soft); border-color: #e9d3b4; }
 .accent-card p { color: #6b3d08; }
+
+
+/* --- The front door ------------------------------------------------------ */
+
+/*
+ * Full-bleed out of the layout's centred shell. 100vw counts the scrollbar,
+ * which is why body hides overflow-x above: without it every dark band here
+ * buys a horizontal scrollbar on desktop.
+ */
+.bleed {
+  width: 100vw;
+  margin-left: calc(50% - 50vw);
+}
+
+/*
+ * The hero's depth is three layers, not one gradient: two off-centre marigold
+ * glows, a jaali lattice, then the wine base. A single flat gradient is what
+ * makes most dark heroes read as a template.
+ */
+.hero {
+  position: relative;
+  overflow: hidden;
+  background:
+    radial-gradient(60rem 30rem at 78% -10%, rgba(242, 165, 22, 0.28), transparent 60%),
+    radial-gradient(40rem 26rem at 8% 108%, rgba(201, 162, 39, 0.18), transparent 62%),
+    linear-gradient(158deg, var(--wine) 0%, var(--wine-deep) 62%, #1a0309 100%);
+  color: #fdf6ec;
+}
+
+/* A jaali screen: the lattice you look through in a haveli, not a generic
+   dot grid. Two rotated squares per tile give the interlaced diamond. */
+.hero::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='72' height='72' viewBox='0 0 72 72'%3E%3Cg fill='none' stroke='%23e8c766' stroke-width='1' stroke-opacity='0.16'%3E%3Cpath d='M36 2 70 36 36 70 2 36Z'/%3E%3Cpath d='M36 16 56 36 36 56 16 36Z'/%3E%3Cpath d='M0 0 72 72M72 0 0 72' stroke-opacity='0.05'/%3E%3C/g%3E%3C/svg%3E");
+  /* Fades out before it reaches the copy, so the texture never fights the type. */
+  -webkit-mask-image: radial-gradient(70% 70% at 30% 40%, transparent 25%, #000 85%);
+  mask-image: radial-gradient(70% 70% at 30% 40%, transparent 25%, #000 85%);
+  pointer-events: none;
+}
+
+.hero-inner {
+  position: relative;
+  max-width: 1060px;
+  margin: 0 auto;
+  padding: 88px 20px 76px;
+}
+
+.eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  font-size: 0.74rem;
+  font-weight: 600;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--gold-bright);
+}
+.eyebrow::before {
+  content: "";
+  width: 26px;
+  height: 1px;
+  background: var(--gold);
+}
+
+.hero h1 {
+  font-family: var(--serif);
+  /* Fluid so the headline keeps its editorial scale on a phone instead of
+     collapsing to body size. */
+  font-size: clamp(2.5rem, 6.2vw, 4.1rem);
+  line-height: 1.04;
+  letter-spacing: -0.025em;
+  margin: 20px 0 0;
+  max-width: 15ch;
+  color: #fffaf2;
+}
+.hero h1 em {
+  font-style: italic;
+  color: var(--gold-bright);
+}
+
+.hero-lede {
+  margin-top: 20px;
+  max-width: 46ch;
+  font-size: 1.08rem;
+  line-height: 1.68;
+  color: rgba(253, 246, 236, 0.82);
+}
+
+.hero-actions { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 30px; }
+
+.btn.gold {
+  background: linear-gradient(180deg, var(--gold-bright), var(--gold));
+  color: #2c0718;
+  border: none;
+  font-weight: 650;
+  box-shadow: 0 8px 22px rgba(201, 162, 39, 0.24);
+}
+.btn.gold:hover { filter: brightness(1.06); text-decoration: none; }
+
+.btn.ghost {
+  background: transparent;
+  color: #fdf6ec;
+  border: 1px solid rgba(232, 199, 102, 0.45);
+}
+.btn.ghost:hover { border-color: var(--gold-bright); text-decoration: none; }
+
+/* The occasions, named, directly under the headline -- the one thing that says
+   this is not a generic vendor directory. */
+.hero-ticker {
+  margin-top: 46px;
+  padding-top: 22px;
+  border-top: 1px solid rgba(232, 199, 102, 0.22);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 22px;
+  font-size: 0.83rem;
+  letter-spacing: 0.02em;
+  color: rgba(253, 246, 236, 0.62);
+}
+.hero-ticker span { white-space: nowrap; }
+.hero-ticker span::before { content: "◆"; color: var(--gold); margin-right: 9px; font-size: 0.6em; vertical-align: 2px; }
+
+/* --- Section furniture --------------------------------------------------- */
+
+.band { padding: 74px 0; }
+.band.dark { background: linear-gradient(160deg, var(--wine-deep), #170309); color: #fdf6ec; }
+.band.paper { background: var(--paper); }
+
+.band-head { max-width: 640px; margin-bottom: 34px; }
+.band-head h2 {
+  font-family: var(--serif);
+  font-size: clamp(1.7rem, 3.4vw, 2.3rem);
+  letter-spacing: -0.02em;
+  margin: 12px 0 10px;
+}
+.band.dark .band-head h2 { color: #fffaf2; }
+.band.dark .band-head p { color: rgba(253, 246, 236, 0.72); }
+
+/* --- Occasion cards ------------------------------------------------------ */
+
+/*
+ * Each group gets its own hue so the five read as five things rather than one
+ * list chopped up. The motif is a corner ornament, not a background fill --
+ * behind the text it would cost legibility for decoration.
+ */
+.occasions { display: grid; gap: 16px; }
+@media (min-width: 720px) { .occasions { grid-template-columns: repeat(2, 1fr); } }
+@media (min-width: 1000px) { .occasions { grid-template-columns: repeat(3, 1fr); } }
+
+.occasion {
+  position: relative;
+  overflow: hidden;
+  display: block;
+  padding: 26px 24px 24px;
+  border-radius: var(--radius-lg);
+  color: #fffaf2;
+  text-decoration: none;
+  min-height: 210px;
+  transition: transform 140ms ease, box-shadow 140ms ease;
+}
+.occasion:hover { transform: translateY(-3px); box-shadow: 0 14px 34px rgba(38, 4, 15, 0.26); text-decoration: none; }
+
+.occasion::after {
+  content: "";
+  position: absolute;
+  right: -42px;
+  bottom: -46px;
+  width: 172px;
+  height: 172px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Cg fill='none' stroke='%23ffffff' stroke-width='1.1' stroke-opacity='0.30'%3E%3Ccircle cx='50' cy='50' r='46'/%3E%3Ccircle cx='50' cy='50' r='33'/%3E%3Ccircle cx='50' cy='50' r='20'/%3E%3Cg%3E%3Cpath d='M50 4v92M4 50h92M17 17l66 66M83 17l-66 66'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+  background-size: contain;
+  opacity: 0.5;
+  pointer-events: none;
+}
+
+.occasion h3 {
+  font-family: var(--serif);
+  font-size: 1.32rem;
+  letter-spacing: -0.01em;
+  margin: 0 0 12px;
+  position: relative;
+}
+.occasion-blurb {
+  position: relative;
+  margin: -6px 0 12px;
+  font-size: 0.86rem;
+  line-height: 1.5;
+  color: rgba(255, 250, 242, 0.66);
+}
+
+.occasion ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  position: relative;
+  font-size: 0.9rem;
+  line-height: 1.85;
+  color: rgba(255, 250, 242, 0.88);
+}
+.occasion .more { display: block; margin-top: 12px; font-size: 0.8rem; letter-spacing: 0.06em; text-transform: uppercase; color: rgba(255, 250, 242, 0.75); position: relative; }
+
+.occasion.wedding    { background: linear-gradient(150deg, #7a1230, #3f0819); }
+.occasion.religious  { background: linear-gradient(150deg, #8a4a12, #3d1c05); }
+.occasion.milestone  { background: linear-gradient(150deg, #6b2d6b, #2d0f30); }
+.occasion.festival   { background: linear-gradient(150deg, #a8600f, #48220a); }
+.occasion.commercial { background: linear-gradient(150deg, #1f4f45, #0c221d); }
+
+/* --- Numbered steps ------------------------------------------------------ */
+
+.steps { display: grid; gap: 30px; }
+@media (min-width: 860px) { .steps { grid-template-columns: repeat(3, 1fr); } }
+
+.step { position: relative; padding-top: 22px; border-top: 2px solid var(--gold); }
+.step .num {
+  font-family: var(--serif);
+  font-size: 2.4rem;
+  line-height: 1;
+  color: var(--gold);
+  display: block;
+  margin-bottom: 10px;
+}
+.step h3 { font-size: 1.12rem; margin-bottom: 8px; }
+.band.dark .step h3 { color: #fffaf2; }
+.band.dark .step p { color: rgba(253, 246, 236, 0.74); margin: 0; }
+
+/* --- Crew grid ----------------------------------------------------------- */
+
+.crew { display: grid; gap: 12px; grid-template-columns: repeat(2, 1fr); }
+@media (min-width: 700px) { .crew { grid-template-columns: repeat(3, 1fr); } }
+@media (min-width: 980px) { .crew { grid-template-columns: repeat(4, 1fr); } }
+
+.crew a {
+  display: block;
+  padding: 16px 16px 15px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--card);
+  color: var(--ink);
+  font-weight: 560;
+  font-size: 0.95rem;
+  text-decoration: none;
+  transition: border-color 120ms, transform 120ms, box-shadow 120ms;
+}
+.crew a:hover {
+  border-color: var(--gold);
+  transform: translateY(-2px);
+  box-shadow: var(--shadow);
+  text-decoration: none;
+}
+.crew a small { display: block; margin-top: 3px; font-weight: 400; color: var(--ink-faint); font-size: 0.79rem; }
+
+/* --- Escrow promise ------------------------------------------------------ */
+
+.promise { display: grid; gap: 22px; align-items: start; }
+@media (min-width: 860px) { .promise { grid-template-columns: 1.1fr 1fr; gap: 54px; } }
+
+.promise-list { list-style: none; margin: 0; padding: 0; }
+.promise-list li { padding: 15px 0; border-bottom: 1px solid rgba(232, 199, 102, 0.18); }
+.promise-list li:last-child { border-bottom: none; }
+.promise-list strong { display: block; color: var(--gold-bright); font-size: 0.97rem; margin-bottom: 3px; }
+.promise-list span { color: rgba(253, 246, 236, 0.74); font-size: 0.92rem; }
+
+/* --- Metro strip --------------------------------------------------------- */
+
+.metro-strip { display: flex; flex-wrap: wrap; gap: 9px; margin-top: 18px; }
+.metro-strip a {
+  padding: 8px 15px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  font-size: 0.87rem;
+  color: var(--ink-soft);
+  background: var(--card);
+  text-decoration: none;
+}
+.metro-strip a:hover { border-color: var(--maroon); color: var(--maroon); text-decoration: none; }
