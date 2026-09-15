@@ -25,6 +25,7 @@ import { fileURLToPath } from "node:url";
 import { dirname, resolve } from "node:path";
 import { CREW_SPECIALTIES, EVENT_GROUPS, EVENT_TYPES } from "../src/domain/taxonomy.js";
 import { TEXAS_METROS } from "../src/domain/geo.js";
+import { WEIGHTS } from "../src/domain/matching.js";
 
 const here = dirname(fileURLToPath(import.meta.url));
 // dist/test -> services/api -> the repo root -> the web app's content.
@@ -148,4 +149,46 @@ test("the bundled grid covers every event type the service knows", () => {
   const bundled = new Set(Object.values(bundledGroups).flat());
   const missing = EVENT_TYPES.filter((type) => !bundled.has(type));
   assert.deepEqual(missing, [], "matchable but absent from the landing page");
+});
+
+/**
+ * The landing page publishes the ranking weights.
+ *
+ * That is the strongest claim on the page -- "nobody can buy their way up, and
+ * here is exactly what decides it" -- so a stale copy is not a cosmetic bug. It
+ * is a specific, checkable promise that would be false.
+ */
+const publishedWeights = (() => {
+  const start = content.indexOf("export const MATCH_WEIGHTS");
+  assert.notEqual(start, -1, "seo.ts no longer publishes MATCH_WEIGHTS");
+  const block = content.slice(start);
+  const weights: Record<string, number> = {};
+  for (const match of block.matchAll(/key:\s*"([a-z]+)",[\s\S]*?weight:\s*([0-9.]+),/g)) {
+    weights[match[1] as string] = Number(match[2]);
+  }
+  return weights;
+})();
+
+test("the published ranking weights parse", () => {
+  assert.ok(Object.keys(publishedWeights).length > 0, "no weights parsed out of seo.ts");
+});
+
+test("the weights on the landing page are the weights the engine uses", () => {
+  assert.deepEqual(
+    Object.keys(publishedWeights).sort(),
+    Object.keys(WEIGHTS).sort(),
+    "the landing page names different factors than the match engine scores",
+  );
+  for (const [key, weight] of Object.entries(WEIGHTS)) {
+    assert.equal(
+      publishedWeights[key],
+      weight,
+      `"${key}" is published as ${publishedWeights[key]} but scored as ${weight}`,
+    );
+  }
+});
+
+test("the published weights sum to one, as a whole ranking must", () => {
+  const total = Object.values(publishedWeights).reduce((sum, weight) => sum + weight, 0);
+  assert.ok(Math.abs(total - 1) < 1e-9, `published weights sum to ${total}`);
 });

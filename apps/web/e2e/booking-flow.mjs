@@ -16,6 +16,17 @@ const PASSWORD = "a-long-enough-passphrase";
 
 const stamp = Date.now();
 const VENUE_ADDRESS = "8000 Warren Pkwy, Frisco TX 75034";
+/*
+ * Phones derived from the same stamp as the emails.
+ *
+ * They used to be hardcoded while the emails were timestamped, so the run only
+ * worked against a database that had never seen it before: phone is unique in
+ * the schema, and the second run failed at registration with a timeout that
+ * said nothing about why. Anyone keeping a seeded development database hits
+ * this on their first re-run.
+ */
+const phoneBase = 5_000_000 + (stamp % 4_000_000);
+const phone = (n) => `+1469${String(phoneBase + n).slice(0, 7)}`;
 const HOST_EMAIL = `host.${stamp}@frisco.test`;
 const VENDOR_EMAIL = `mua.${stamp}@plano.test`;
 
@@ -65,7 +76,7 @@ try {
   const hostPage = await host.newPage();
 
   await register(hostPage, {
-    email: HOST_EMAIL, roles: ["host"], phone: "+14695551001", metro: "Dallas-Fort Worth",
+    email: HOST_EMAIL, roles: ["host"], phone: phone(1), metro: "Dallas-Fort Worth",
   });
   check(hostPage.url().includes("/dashboard"), "host registers and lands on the dashboard");
 
@@ -125,7 +136,7 @@ try {
   const vendorPage = await vendor.newPage();
 
   await register(vendorPage, {
-    email: VENDOR_EMAIL, roles: ["crew"], phone: "+14695551002", metro: "Dallas-Fort Worth",
+    email: VENDOR_EMAIL, roles: ["crew"], phone: phone(2), metro: "Dallas-Fort Worth",
   });
   check(vendorPage.url().includes("/dashboard"), "vendor registers");
 
@@ -152,10 +163,18 @@ try {
 
   await vendorPage.goto(`${WEB}/gigs`, { waitUntil: "networkidle" });
   const feed = (await vendorPage.textContent("body")) ?? "";
-  check(feed.includes("Half-Saree Function"), "the host's gig appears in the vendor's feed");
+  // By id, not by title. Any database with more than one open Half-Saree
+  // Function -- seed data, or simply a second run -- makes a title match
+  // ambiguous, and the feed is sorted by score rather than by age. The test
+  // used to click the first match and then assert against the gig it had
+  // created, so it passed while applying to a different gig entirely.
+  check(
+    (await vendorPage.locator(`a[href="/gigs/${gigId}"]`).count()) > 0,
+    "the host's gig appears in the vendor's feed",
+  );
   check(/Match/.test(feed), "the vendor sees their own match score for it");
 
-  await vendorPage.click("text=Half-Saree Function");
+  await vendorPage.goto(`${WEB}/gigs/${gigId}`, { waitUntil: "networkidle" });
   await vendorPage.waitForSelector('input[name="quotedRate"]', { timeout: 30_000 });
   await vendorPage.fill('input[name="quotedRate"]', "600");
   await vendorPage.fill('textarea[name="message"]', "I specialise in Telugu half-saree looks.");

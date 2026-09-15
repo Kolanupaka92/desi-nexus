@@ -1,7 +1,8 @@
 import Link from "next/link";
 import { taxonomy } from "@/lib/api";
 import { label } from "@/lib/format";
-import { EVENT_GROUPS, METROS, SPECIALITIES } from "@/content/seo";
+import { EVENT_GROUPS, MATCH_WEIGHTS, METROS, SPECIALITIES } from "@/content/seo";
+import { HeroSearch } from "@/components/HeroSearch";
 
 /**
  * The front door.
@@ -81,6 +82,18 @@ export default async function HomePage() {
 
   const headline = ["mehndi", "sangeet", "half_saree_function", "griha_pravesham", "baraat", "garba_navratri"];
 
+  // The eight most-searched roles. The rest are one click away at /hire.
+  const FEATURED = [
+    "makeup-artist", "photographer", "henna-artist", "pandit",
+    "decorator", "dj", "videographer", "caterer",
+  ];
+  const featured = FEATURED.flatMap((slug) => SPECIALITIES.filter((s) => s.slug === slug));
+
+  // Every occasion, grouped order preserved, as [code, label] for the search.
+  const occasionOptions = Object.values(groups)
+    .flat()
+    .map((code) => [code, label(code)] as const);
+
   return (
     <>
       <section className="bleed hero">
@@ -94,12 +107,19 @@ export default async function HomePage() {
             South Asian events across Texas — matched on whether they have done <em>your</em> kind
             of function before, not on who paid for placement.
           </p>
+          {/*
+            The search is the primary action, not the buttons. Every comparable
+            marketplace opens with one, and a visitor who can act in two clicks
+            does not need to be persuaded by a third paragraph first.
+          */}
+          <HeroSearch occasions={occasionOptions} />
+
           <div className="hero-actions">
-            <Link href="/gigs/new" className="btn gold">
-              Find crew for my event
-            </Link>
             <Link href="/for-vendors" className="btn ghost">
               I am a vendor — get booked
+            </Link>
+            <Link href="/gigs/new" className="btn ghost">
+              Post a brief instead
             </Link>
           </div>
           <div className="hero-ticker">
@@ -172,16 +192,36 @@ export default async function HomePage() {
             <span className="eyebrow" style={{ color: "var(--maroon)" }}>
               Who you can book
             </span>
-            <h2>Seventeen specialities, each judged on its own craft.</h2>
+            <h2>Every speciality judged on its own craft.</h2>
           </div>
+          {/*
+            Eight, not seventeen. A full taxonomy on the front door is a wall,
+            and seventeen identical placeholder tiles read as a loading state
+            rather than a catalogue. Every marketplace in this category shows a
+            handful and links to the rest.
+          */}
           <div className="crew">
-            {SPECIALITIES.map((speciality) => (
-              <Link key={speciality.slug} href={`/hire/dallas-fort-worth/${speciality.slug}`}>
-                <span style={{ textTransform: "capitalize" }}>{speciality.noun}</span>
-                <small>{speciality.events.slice(0, 2).map(label).join(" · ")}</small>
+            {featured.map((speciality, index) => (
+              <Link
+                key={speciality.slug}
+                href={`/hire/dallas-fort-worth/${speciality.slug}`}
+                className="crew-card"
+              >
+                {/* The slot real portfolio work drops into. Tinted per card so a
+                    row of them reads as a set rather than as eight copies. */}
+                <div className={`crew-shot tint-${index % 8}`} aria-hidden="true" />
+                <div className="crew-body">
+                  <strong style={{ textTransform: "capitalize" }}>{speciality.noun}</strong>
+                  <small>{speciality.events.slice(0, 2).map(label).join(" · ")}</small>
+                </div>
               </Link>
             ))}
           </div>
+          <p style={{ marginTop: 18 }}>
+            <Link href="/hire" className="btn secondary">
+              See all {SPECIALITIES.length} specialities
+            </Link>
+          </p>
 
           <div className="band-head" style={{ marginTop: 44, marginBottom: 0 }}>
             <span className="eyebrow" style={{ color: "var(--maroon)" }}>
@@ -199,6 +239,35 @@ export default async function HomePage() {
       </section>
 
       <section className="bleed band dark">
+        <div className="shell">
+          <div className="band-head">
+            <span className="eyebrow">Why this artist, and not that one</span>
+            <h2>The ranking is published, not a black box.</h2>
+            <p>
+              Every other marketplace hands you a list. None of them will tell you why the
+              person at the top is at the top. These are the exact weights the match engine
+              uses &mdash; and placement is not for sale, which is a claim anyone can make and
+              this is the receipt.
+            </p>
+          </div>
+          <div className="weights">
+            {MATCH_WEIGHTS.map((factor) => (
+              <div className="weight" key={factor.key}>
+                <span className="weight-name">{factor.label}</span>
+                <span className="weight-pct">{Math.round(factor.weight * 100)}%</span>
+                <span className="weight-track">
+                  {/* Scaled against the largest weight so the bars use the full
+                      width; the number beside each one is the real figure. */}
+                  <i style={{ width: `${(factor.weight / MATCH_WEIGHTS[0]!.weight) * 100}%` }} />
+                </span>
+                <p className="weight-why">{factor.why}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      <section className="bleed band darker">
         <div className="shell promise">
           <div>
             <span className="eyebrow">The part nobody enjoys</span>

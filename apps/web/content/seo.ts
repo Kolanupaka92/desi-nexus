@@ -303,3 +303,60 @@ export const EVENT_GROUPS: Readonly<Record<string, readonly string[]>> = {
     "influencer_collab",
   ],
 };
+
+/**
+ * How the match engine actually weights a ranking.
+ *
+ * Shown on the landing page because it is the one thing no comparable
+ * marketplace offers: every competitor returns a list, and none of them will
+ * tell a host why this artist is above that one. Publishing the weights is also
+ * the honest version of "we do not sell placement" -- a claim anyone can make,
+ * and this is the receipt.
+ *
+ * These must equal the service's own WEIGHTS. A drift test asserts it: a
+ * landing page publishing weights the engine does not use is worse than one
+ * publishing nothing, because it is a specific promise that is false.
+ */
+export const MATCH_WEIGHTS: ReadonlyArray<{
+  readonly key: string;
+  readonly label: string;
+  readonly weight: number;
+  readonly why: string;
+}> = [
+  {
+    key: "cultural",
+    label: "Cultural fit",
+    weight: 0.3,
+    why: "Whether they have actually worked your tradition. A MUA who does South Indian bridal is not interchangeable with one who does Punjabi Sikh bridal, and booking the wrong one is the most common way a function is ruined.",
+  },
+  {
+    key: "proximity",
+    label: "Distance",
+    weight: 0.22,
+    why: "Measured from the venue's real address, not a city centre. It decides what the drive costs and whether they can make a 6am call time.",
+  },
+  {
+    key: "budget",
+    label: "Budget fit",
+    weight: 0.16,
+    why: "Their rate against your range. Being shown someone at triple your budget wastes an enquiry for both of you.",
+  },
+  {
+    key: "language",
+    label: "Language",
+    weight: 0.12,
+    why: "What they speak on the day, with your family and the other vendors — not what is on their profile.",
+  },
+  {
+    key: "reputation",
+    label: "Track record",
+    weight: 0.12,
+    why: "Completed bookings and how they were reviewed. Deliberately not the heaviest weight, or nobody new could ever get their first booking.",
+  },
+  {
+    key: "responsiveness",
+    label: "Replies fast",
+    weight: 0.08,
+    why: "How quickly they answer. Small, because a slow reply from the right artist still beats a fast one from the wrong one.",
+  },
+];
