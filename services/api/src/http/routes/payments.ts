@@ -46,17 +46,10 @@ export function registerPaymentRoutes(router: Router, deps: AppDeps): void {
       if (!user) throw new HttpError(404, "not_found", "user not found");
 
       const account = await stripe.createConnectAccount({ userId, email: user.email });
-      const profile = await store.profiles.crew(userId);
-      if (profile) {
-        profile.stripeAccountId = account.id;
-        await store.profiles.putCrew(profile);
-      } else {
-        const creator = await store.profiles.creator(userId);
-        if (creator) {
-          creator.stripeAccountId = account.id;
-          await store.profiles.putCreator(creator);
-        }
-      }
+      // Write just the account id. Saving the whole profile back would make
+      // payout state depend on the caller reconstructing every other field
+      // correctly, which is how an ordinary profile edit used to erase it.
+      await store.profiles.linkStripeAccount(userId, account.id);
 
       return {
         status: 201,

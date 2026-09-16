@@ -160,10 +160,13 @@ class PgProfiles implements ProfileRepository {
     const rows = await this.db.query(
       `INSERT INTO host_profiles (user_id, kind, business_name, about, events_hosted, rating_avg, rating_count)
        VALUES ($1, $2, $3, $4, $5, $6, $7)
+       -- Reputation stays out of the SET list for the same reason as putCrew:
+       -- it is the platform's to write. No host-profile route is exposed today,
+       -- so this one was never reachable by a caller, but leaving it would put
+       -- the defect back the moment one is added.
        ON CONFLICT (user_id) DO UPDATE SET
          kind = EXCLUDED.kind, business_name = EXCLUDED.business_name, about = EXCLUDED.about,
-         events_hosted = EXCLUDED.events_hosted, rating_avg = EXCLUDED.rating_avg,
-         rating_count = EXCLUDED.rating_count
+         events_hosted = EXCLUDED.events_hosted
        RETURNING *`,
       [
         profile.userId,
@@ -201,6 +204,16 @@ class PgProfiles implements ProfileRepository {
                  COALESCE($4, 25), COALESCE($5, 90), COALESCE($6, 300),
                  COALESCE($7, 120), COALESCE($8, 18000),
                  $9,$10,$11,$12,$13)
+         -- Only the columns a vendor edits. Reputation and payout state are the
+         -- platform's to write, and this statement used to overwrite them from
+         -- whatever the caller happened to construct: POST /v1/profiles/crew
+         -- builds a fresh object with no Stripe id and hard-coded zeroes, so an
+         -- ordinary profile edit nulled the connected account -- leaving the
+         -- vendor unbookable with a 201 telling them the save had worked -- and
+         -- reset their rating and completed-gig counts on the way past.
+         -- Leaving them out of the SET list keeps the INSERT values for a new
+         -- profile and preserves the stored ones on every edit. The platform
+         -- writes them through their own methods; see linkStripeAccount.
          ON CONFLICT (user_id) DO UPDATE SET
            starting_rate_cents = EXCLUDED.starting_rate_cents,
            years_experience = EXCLUDED.years_experience,
@@ -208,12 +221,7 @@ class PgProfiles implements ProfileRepository {
            per_mile_cents = EXCLUDED.per_mile_cents,
            max_radius_miles = EXCLUDED.max_radius_miles,
            overnight_threshold_miles = EXCLUDED.overnight_threshold_miles,
-           overnight_cents = EXCLUDED.overnight_cents,
-           rating_avg = EXCLUDED.rating_avg,
-           rating_count = EXCLUDED.rating_count,
-           completed_gigs = EXCLUDED.completed_gigs,
-           median_response_minutes = EXCLUDED.median_response_minutes,
-           stripe_account_id = EXCLUDED.stripe_account_id`,
+           overnight_cents = EXCLUDED.overnight_cents`,
         [
           profile.userId,
           profile.startingRateCents,
@@ -279,18 +287,31 @@ class PgProfiles implements ProfileRepository {
     return profiles.filter((profile): profile is CrewProfile => profile !== undefined);
   }
 
+  async linkStripeAccount(userId: string, stripeAccountId: string): Promise<void> {
+    // Either profile kind may hold the account; whichever row exists is updated.
+    await this.db.query(`UPDATE crew_profiles SET stripe_account_id = $2 WHERE user_id = $1`, [
+      userId,
+      stripeAccountId,
+    ]);
+    await this.db.query(`UPDATE creator_profiles SET stripe_account_id = $2 WHERE user_id = $1`, [
+      userId,
+      stripeAccountId,
+    ]);
+  }
+
   async putCreator(profile: CreatorProfile): Promise<CreatorProfile> {
     return this.db.withTransaction(async (tx) => {
       await tx.query(
         `INSERT INTO creator_profiles (user_id, disciplines, height_cm, day_rate_cents,
              rate_per_post_cents, rating_avg, rating_count, stripe_account_id)
          VALUES ($1, $2::text[], $3, $4, $5, $6, $7, $8)
+         -- Vendor-editable columns only, for the same reason as putCrew above:
+         -- a creator editing their disciplines must not lose their connected
+         -- account or their reputation.
          ON CONFLICT (user_id) DO UPDATE SET
            disciplines = EXCLUDED.disciplines, height_cm = EXCLUDED.height_cm,
            day_rate_cents = EXCLUDED.day_rate_cents,
-           rate_per_post_cents = EXCLUDED.rate_per_post_cents,
-           rating_avg = EXCLUDED.rating_avg, rating_count = EXCLUDED.rating_count,
-           stripe_account_id = EXCLUDED.stripe_account_id`,
+           rate_per_post_cents = EXCLUDED.rate_per_post_cents`,
         [
           profile.userId,
           profile.disciplines,
