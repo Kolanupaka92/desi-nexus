@@ -55,6 +55,23 @@ export interface ProfileRepository {
    * account id came to be nulled by an ordinary edit.
    */
   linkStripeAccount(userId: string, stripeAccountId: string): Promise<void>;
+  /**
+   * Opt a profile into being public, or back out of it.
+   *
+   * Separate from putCrew because publishing is a decision, not a field: it is
+   * the moment a vendor's page becomes readable without a session and
+   * indexable by a crawler. Routing it through a profile save would make it
+   * something a malformed body could toggle.
+   */
+  setPublished(userId: string, publishedAt: string | undefined): Promise<void>;
+  /**
+   * A published profile by its public slug.
+   *
+   * Only ever returns published rows, so an unpublished slug is
+   * indistinguishable from one that was never claimed and cannot be used to
+   * probe for who is on the platform.
+   */
+  publishedBySlug(slug: string): Promise<CrewProfile | undefined>;
 }
 
 export interface GigRepository {
@@ -194,6 +211,22 @@ class MemoryProfiles implements ProfileRepository {
     const kept = MemoryProfiles.preserve(this.creators.get(profile.userId), profile);
     this.creators.set(profile.userId, clone(kept));
     return clone(kept);
+  }
+
+  async setPublished(userId: string, publishedAt: string | undefined): Promise<void> {
+    const profile = this.crewMap.get(userId);
+    if (!profile) return;
+    const next = { ...profile };
+    if (publishedAt === undefined) delete next.publishedAt;
+    else next.publishedAt = publishedAt;
+    this.crewMap.set(userId, next);
+  }
+
+  async publishedBySlug(slug: string): Promise<CrewProfile | undefined> {
+    const found = [...this.crewMap.values()].find(
+      (profile) => profile.slug === slug && profile.publishedAt !== undefined,
+    );
+    return found ? clone(found) : undefined;
   }
 
   async linkStripeAccount(userId: string, stripeAccountId: string): Promise<void> {
