@@ -47,6 +47,14 @@ export interface ProfileRepository {
   creator(userId: string): Promise<CreatorProfile | undefined>;
   /** Candidate pool for matching, pre-filtered on speciality. */
   crewBySpecialty(specialty: string): Promise<CrewProfile[]>;
+  /**
+   * Attach a Stripe connected account to a vendor.
+   *
+   * Separate from putCrew because payout state is the platform's to write, not
+   * the vendor's to submit. Round-tripping it through a profile save is how the
+   * account id came to be nulled by an ordinary edit.
+   */
+  linkStripeAccount(userId: string, stripeAccountId: string): Promise<void>;
 }
 
 export interface GigRepository {
@@ -153,14 +161,46 @@ class MemoryProfiles implements ProfileRepository {
     return clone(profile);
   }
 
+  /**
+   * Reputation and payout state a profile save must never carry.
+   *
+   * The caller of a profile save is the vendor, and these are the platform's
+   * to write. Keeping the stored values here mirrors what the SQL stores do by
+   * leaving these columns out of their ON CONFLICT SET lists -- if the two
+   * disagreed, the PostgreSQL end-to-end suite would be asserting different
+   * behaviour from the in-memory one.
+   */
+  private static preserve<T extends CrewProfile | CreatorProfile>(stored: T | undefined, incoming: T): T {
+    if (!stored) return incoming;
+    return {
+      ...incoming,
+      ...(stored.stripeAccountId === undefined ? {} : { stripeAccountId: stored.stripeAccountId }),
+      ...(stored.ratingAvg === undefined ? {} : { ratingAvg: stored.ratingAvg }),
+      ratingCount: stored.ratingCount,
+      ...("completedGigs" in stored ? { completedGigs: (stored as CrewProfile).completedGigs } : {}),
+      ...("medianResponseMinutes" in stored && stored.medianResponseMinutes !== undefined
+        ? { medianResponseMinutes: stored.medianResponseMinutes }
+        : {}),
+    };
+  }
+
   async putCrew(profile: CrewProfile): Promise<CrewProfile> {
-    this.crewMap.set(profile.userId, clone(profile));
-    return clone(profile);
+    const kept = MemoryProfiles.preserve(this.crewMap.get(profile.userId), profile);
+    this.crewMap.set(profile.userId, clone(kept));
+    return clone(kept);
   }
 
   async putCreator(profile: CreatorProfile): Promise<CreatorProfile> {
-    this.creators.set(profile.userId, clone(profile));
-    return clone(profile);
+    const kept = MemoryProfiles.preserve(this.creators.get(profile.userId), profile);
+    this.creators.set(profile.userId, clone(kept));
+    return clone(kept);
+  }
+
+  async linkStripeAccount(userId: string, stripeAccountId: string): Promise<void> {
+    const crew = this.crewMap.get(userId);
+    if (crew) this.crewMap.set(userId, { ...crew, stripeAccountId });
+    const creator = this.creators.get(userId);
+    if (creator) this.creators.set(userId, { ...creator, stripeAccountId });
   }
 
   async host(userId: string): Promise<HostProfile | undefined> {

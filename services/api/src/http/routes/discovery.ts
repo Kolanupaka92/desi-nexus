@@ -9,7 +9,13 @@
  */
 import { HttpError, type Router } from "../router.js";
 import { authenticate, field, isNumber, isObject, isString, isStringArray, rateLimit, requireRole } from "../middleware.js";
-import { validateCrewProfile, ValidationError, totalLocalReach, type CrewProfile } from "../../domain/users.js";
+import {
+  validateCrewProfile,
+  ValidationError,
+  totalLocalReach,
+  canReceivePayouts,
+  type CrewProfile,
+} from "../../domain/users.js";
 import { rankCandidates, type Candidate } from "../../domain/matching.js";
 import { CREW_SPECIALTIES, CULTURAL_TAGS, EVENT_GROUPS, LANGUAGES, CUSTOMARY_CREW, isEventType } from "../../domain/taxonomy.js";
 import { TEXAS_METROS, quoteTravel } from "../../domain/geo.js";
@@ -208,6 +214,13 @@ export async function toCandidate(
   const user = await store.users.byId(profile.userId);
   return {
     userId: profile.userId,
+    // Matching disqualifies a candidate who cannot be paid, but this adapter
+    // never set the flag, so the rule was dead for every real search: a host
+    // could shortlist, take an application and extend an offer to a vendor the
+    // escrow step would then refuse with vendor_not_payable. Deciding it with
+    // canReceivePayouts -- the same function that guards escrow -- is what
+    // keeps search and booking from disagreeing.
+    payoutReady: user ? canReceivePayouts(user, profile.stripeAccountId).ok : false,
     specialties: profile.specialties,
     culturalTags: profile.culturalTags,
     languages: user?.languages ?? [],

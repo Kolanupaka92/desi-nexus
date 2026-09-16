@@ -85,7 +85,13 @@ export function registerGigRoutes(router: Router, deps: AppDeps): void {
         throw new HttpError(400, "no_profile", "create a vendor profile to see matching gigs");
       }
 
-      const candidate = await toCandidate(profile, store);
+      // The vendor's own feed answers "which gigs may I apply to", and applying
+      // needs only a verified phone -- being *booked* is what needs payouts,
+      // which is the host's side of the question and is gated in search and
+      // again at escrow. So the payout claim is dropped rather than contradicted:
+      // leaving it set would empty this page for every vendor who has not
+      // finished Stripe onboarding, with nothing on screen explaining why.
+      const { payoutReady: _bookability, ...candidate } = await toCandidate(profile, store);
       const open = await store.gigs.open(profile.specialties);
       const applied = new Set<string>();
       for (const candidateGig of open) {
