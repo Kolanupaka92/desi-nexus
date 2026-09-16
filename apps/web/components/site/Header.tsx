@@ -63,6 +63,9 @@ export function Header({ signedIn }: { signedIn: boolean }) {
               <Link href="/for-vendors" className="plain">
                 For vendors
               </Link>
+              <Link href="/contact" className="plain">
+                Contact
+              </Link>
               <Link href="/login" className="plain">
                 Sign in
               </Link>

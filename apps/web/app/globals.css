@@ -1184,3 +1184,226 @@ main:focus { outline: none; }
     }
   }
 }
+
+/* --- Enquiry form --------------------------------------------------------- */
+
+/*
+ * The one thing on this site a visitor can do without an account. It sits on
+ * a card over the dark band so it reads as the object on the page rather than
+ * as another section of copy.
+ */
+.enquiry-panel {
+  display: grid;
+  gap: var(--space-6);
+  align-items: start;
+}
+@media (min-width: 940px) {
+  .enquiry-panel { grid-template-columns: 0.85fr 1.15fr; gap: var(--space-8); }
+}
+.enquiry-panel .enquiry-intro h2 {
+  font-family: var(--serif);
+  font-size: var(--step-3);
+  color: #fffaf2;
+  margin: var(--space-3) 0 var(--space-3);
+}
+.enquiry-panel .enquiry-intro p { color: rgba(253, 246, 236, 0.76); max-width: 42ch; }
+.enquiry-points { list-style: none; margin: var(--space-5) 0 0; padding: 0; }
+.enquiry-points li {
+  position: relative;
+  padding-left: 26px;
+  margin-bottom: var(--space-3);
+  color: rgba(253, 246, 236, 0.8);
+  font-size: 0.93rem;
+}
+.enquiry-points li::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 7px;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  border: 1px solid var(--gold);
+  background: rgba(201, 162, 39, 0.35);
+}
+
+.enquiry {
+  display: grid;
+  gap: var(--space-4);
+  padding: clamp(20px, 3vw, 30px);
+  border-radius: var(--radius-xl);
+  background: var(--paper);
+  box-shadow: var(--shadow-lg);
+}
+.enquiry-row { display: grid; gap: var(--space-4); }
+@media (min-width: 560px) { .enquiry-row { grid-template-columns: 1fr 1fr; } }
+
+.enquiry .field + .field { margin-top: 0; }
+.enquiry label { display: flex; align-items: baseline; gap: var(--space-2); }
+.enquiry .optional {
+  font-weight: 400;
+  font-size: 0.76rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+}
+.enquiry select {
+  /* Matching the height of the text inputs beside them; a select left to the
+     platform default sits two pixels short and the row looks misaligned. */
+  min-height: 42px;
+}
+.enquiry-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3) var(--space-4);
+  margin-top: var(--space-2);
+}
+.enquiry-actions .hint { margin: 0; flex: 1 1 18ch; }
+
+/*
+ * The honeypot.
+ *
+ * Off-screen rather than display:none or type=hidden, both of which a bot can
+ * cheaply detect and skip. Kept out of the tab order by the input's own
+ * tabindex and out of the accessibility tree by aria-hidden on the wrapper,
+ * so nobody using a keyboard or a screen reader ever reaches it.
+ */
+.hp {
+  position: absolute;
+  left: -9999px;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+}
+
+/* The confirmation that replaces the form. */
+.enquiry-done {
+  padding: clamp(28px, 4vw, 44px);
+  border-radius: var(--radius-xl);
+  background: var(--paper);
+  box-shadow: var(--shadow-lg);
+  color: var(--green);
+  text-align: center;
+}
+.enquiry-done h3 {
+  font-family: var(--serif);
+  font-size: var(--step-2);
+  color: var(--ink);
+  margin: var(--space-4) 0 var(--space-2);
+}
+.enquiry-done p { color: var(--ink-soft); margin: 0; max-width: 46ch; margin-inline: auto; }
+
+/* --- Gallery -------------------------------------------------------------- */
+
+.gallery-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin-bottom: var(--space-5);
+}
+.chip {
+  /* A real button, not a styled div: it is a control, and a keyboard has to
+     reach it and Enter has to work without any of that being re-implemented. */
+  appearance: none;
+  min-height: 38px;
+  padding: 0 16px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-pill);
+  background: var(--card);
+  color: var(--ink-soft);
+  font: inherit;
+  font-size: 0.88rem;
+  cursor: pointer;
+  transition: border-color var(--fast) var(--ease), color var(--fast) var(--ease),
+    background var(--fast) var(--ease);
+}
+.chip:hover { border-color: var(--marigold); color: var(--ink); }
+.chip.on { background: var(--maroon); border-color: var(--maroon); color: #fff; }
+
+.gallery {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: var(--space-3);
+  grid-template-columns: repeat(2, 1fr);
+}
+@media (min-width: 640px) { .gallery { grid-template-columns: repeat(3, 1fr); } }
+@media (min-width: 980px) { .gallery { grid-template-columns: repeat(4, 1fr); } }
+
+.gallery-item {
+  position: relative;
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  background: var(--marigold-soft);
+  /* Every tile the same shape whatever the source file, so the grid is a grid
+     rather than a ragged edge; the image covers rather than distorts. */
+  aspect-ratio: 4 / 5;
+}
+.gallery-img { width: 100%; height: 100%; object-fit: cover; display: block; }
+
+.gallery-caption {
+  position: absolute;
+  inset: auto 0 0 0;
+  padding: 26px var(--space-4) var(--space-3);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 0.78rem;
+  color: #fffaf2;
+  /* A gradient rather than a flat panel, so the caption is legible over a dark
+     photograph and over a bright one without hiding either. */
+  background: linear-gradient(180deg, transparent, rgba(20, 3, 10, 0.78));
+}
+.gallery-occasion { font-weight: 600; letter-spacing: 0.02em; }
+.gallery-credit { color: rgba(255, 250, 242, 0.78); }
+.gallery-credit a { color: inherit; text-decoration: underline; text-underline-offset: 2px; }
+
+/* --- Testimonials --------------------------------------------------------- */
+
+.quotes {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: var(--space-4);
+}
+@media (min-width: 820px) { .quotes { grid-template-columns: repeat(3, 1fr); } }
+
+.quotes figure {
+  margin: 0;
+  height: 100%;
+  padding: var(--space-5);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  background: var(--card);
+  display: flex;
+  flex-direction: column;
+}
+.quotes blockquote { margin: 0; flex: 1; }
+.quotes blockquote p {
+  margin: 0;
+  font-family: var(--serif);
+  font-size: var(--step-1);
+  line-height: 1.5;
+  color: var(--ink);
+}
+/* A drawn quote mark rather than a typed one, so it sits where it should
+   instead of pushing the first line in by a character. */
+.quotes blockquote p::before {
+  content: "\201C";
+  color: var(--marigold);
+  font-size: 1.6em;
+  line-height: 0;
+  vertical-align: -0.28em;
+  margin-right: 2px;
+}
+.quotes figcaption {
+  margin-top: var(--space-4);
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--line);
+  font-size: 0.87rem;
+}
+.quotes figcaption strong { display: block; color: var(--ink); }
+.quotes figcaption span { color: var(--ink-faint); }

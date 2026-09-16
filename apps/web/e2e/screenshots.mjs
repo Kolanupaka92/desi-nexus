@@ -24,6 +24,7 @@ const PAGES = [
   ["hire", "/hire"],
   ["hire-metro", "/hire/dallas-fort-worth"],
   ["hire-speciality", "/hire/dallas-fort-worth/makeup-artist"],
+  ["contact", "/contact"],
   ["for-vendors", "/for-vendors"],
   ["login", "/login"],
   ["register", "/register"],

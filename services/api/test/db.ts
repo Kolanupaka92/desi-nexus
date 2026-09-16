@@ -29,7 +29,7 @@ export function migration(file: string): string {
 export const TRANSACTIONAL_TABLES = [
   "users", "gigs", "applications", "escrows", "ledger_entries",
   "gig_transitions", "user_credentials", "host_profiles", "crew_profiles",
-  "creator_profiles", "event_outbox", "reviews", "disputes",
+  "creator_profiles", "event_outbox", "reviews", "disputes", "enquiries",
 ];
 
 /** Extensions 001_init.sql expects. They are cluster-wide, not per-schema. */
@@ -85,7 +85,12 @@ export async function createTestSchema(schema: string): Promise<Database> {
   // attach policies to cluster-wide roles rather than shaping this schema's
   // tables, and postgres.rls.test.ts applies them itself because exercising
   // them is that file's whole purpose.
-  for (const file of ["001_init.sql", "002_seed_reference_data.sql", "005_vendor_public_profiles.sql"]) {
+  for (const file of [
+    "001_init.sql",
+    "002_seed_reference_data.sql",
+    "005_vendor_public_profiles.sql",
+    "006_enquiries.sql",
+  ]) {
     await db.query(migration(file));
   }
   return db;

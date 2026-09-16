@@ -217,3 +217,60 @@ export async function createCrewProfileAction(_prev: FormState, form: FormData):
   revalidatePath("/vendor");
   return { notice: "Profile saved. You will start appearing in host searches." };
 }
+
+/**
+ * The public contact form.
+ *
+ * Unlike every other action here this one takes no session and creates none.
+ * It is the only way for somebody who has not registered to reach the
+ * business, which until now did not exist: a visitor arriving from a shared
+ * link had to create an account, verify a phone and fill in a structured gig
+ * brief before they could ask a question.
+ *
+ * `authenticated: false` is deliberate and load-bearing. Sending the visitor's
+ * cookie -- if they happen to have one from another tab -- would bind an
+ * anonymous enquiry to a user account on the server side and put the caller's
+ * identity into the rate-limit bucket, so one signed-in person's browser could
+ * spend the allowance a different visitor needs.
+ */
+export async function enquiryAction(_prev: FormState, form: FormData): Promise<FormState> {
+  try {
+    await apiFetch<{ received: boolean; id?: string }>("/v1/enquiries", {
+      method: "POST",
+      authenticated: false,
+      body: {
+        name: str(form, "name"),
+        email: str(form, "email"),
+        phone: str(form, "phone"),
+        eventType: str(form, "eventType"),
+        eventDate: str(form, "eventDate"),
+        metroCode: str(form, "metroCode"),
+        message: str(form, "message"),
+        source: str(form, "source"),
+        // The honeypot. Forwarded rather than checked here, so the decision to
+        // drop a submission is made in one place -- and made where the rate
+        // limit and the audit trail already are.
+        website: str(form, "website"),
+      },
+    });
+  } catch (error) {
+    // The rate limiter's own wording -- "too many requests; slow down" -- is
+    // written for an API client and reads as an accusation on a contact form.
+    // Somebody hitting this is far more likely to be sharing an address with a
+    // few hundred other phone users than to be attacking anything.
+    if (error instanceof ApiCallError && error.status === 429) {
+      return {
+        error:
+          "We could not send that just now. Please try again in a few minutes, or email us directly.",
+      };
+    }
+    return explain(error);
+  }
+  // No redirect: the visitor stays on the page they were reading and the form
+  // becomes a confirmation. Bouncing somebody to a /thanks page after they
+  // asked a question loses the context they asked it in.
+  return {
+    notice:
+      "Your enquiry is with us. We will come back to you by email at the address you gave.",
+  };
+}

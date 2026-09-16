@@ -4,9 +4,14 @@ import { label } from "@/lib/format";
 import { EVENT_GROUPS, MATCH_WEIGHTS, METROS, PLANS, SPECIALITIES } from "@/content/seo";
 import { HOME_FAQ } from "@/content/faq";
 import { HeroSearch } from "@/components/HeroSearch";
+import { EnquiryForm } from "@/components/EnquiryForm";
 import { SectionHeader } from "@/components/site/SectionHeader";
 import { CTASection } from "@/components/site/CTASection";
 import { Faq } from "@/components/site/Faq";
+import { Gallery } from "@/components/site/Gallery";
+import { Testimonials } from "@/components/site/Testimonials";
+import { GALLERY } from "@/content/gallery";
+import { TESTIMONIALS } from "@/content/testimonials";
 
 /**
  * The front door.
@@ -97,6 +102,11 @@ export default async function HomePage() {
   const occasionOptions = Object.values(groups)
     .flat()
     .map((code) => [code, label(code)] as const);
+
+  // The metro list as the enquiry form wants it. `code` rather than `slug`:
+  // the form posts to the API, which keys metros by code, while the /hire URLs
+  // are keyed by slug.
+  const metroOptions = METROS.map((metro) => [metro.code, metro.name] as const);
 
   return (
     <>
@@ -244,6 +254,47 @@ export default async function HomePage() {
         </div>
       </section>
 
+      {/*
+        Two sections that render only when there is something real to put in
+        them, rather than a heading over a gap.
+
+        The gallery needs photographs and the quotes need clients; today there
+        are neither, so neither appears and the page is complete without them.
+        Both are built and laid out, so the day somebody drops files into
+        public/gallery and fills in content/gallery.ts, the section arrives
+        finished -- see the notes at the top of those two files. Filling them
+        with stock photography and invented quotes in the meantime would make
+        the page look busier and the business less believable.
+      */}
+      {GALLERY.length > 0 && (
+        <section className="bleed band paper reveal" id="work" aria-labelledby="work-h">
+          <div className="shell">
+            <SectionHeader
+              tone="paper"
+              eyebrow="Real work"
+              id="work-h"
+              title="Functions these vendors have actually worked."
+              lede="Every photograph here is a vendor's own, credited to them. Filter by the kind of function you are planning."
+            />
+            <Gallery items={GALLERY} />
+          </div>
+        </section>
+      )}
+
+      {TESTIMONIALS.length > 0 && (
+        <section className="bleed band paper reveal" aria-labelledby="said-h">
+          <div className="shell">
+            <SectionHeader
+              tone="paper"
+              eyebrow="In their words"
+              id="said-h"
+              title="What hosts have said."
+            />
+            <Testimonials items={TESTIMONIALS} />
+          </div>
+        </section>
+      )}
+
       <section className="bleed band dark reveal" aria-labelledby="rank-h">
         <div className="shell">
           <SectionHeader
@@ -298,6 +349,37 @@ export default async function HomePage() {
               </li>
             ))}
           </ul>
+        </div>
+      </section>
+
+      {/*
+        The contact form, before the FAQ rather than after it.
+
+        Until this section existed the only way to reach the business was to
+        register, verify a phone and fill in a structured gig brief -- which is
+        the right flow for somebody ready to book and the wrong one for the
+        larger group who arrive first, from a shared link, with a date and a
+        question. Asking them to sign up in order to ask was the funnel closing
+        on itself.
+      */}
+      <section className="bleed band dark reveal" id="enquire" aria-labelledby="enq-h">
+        <div className="shell">
+          <div className="enquiry-panel">
+            <div className="enquiry-intro">
+              <span className="eyebrow">Talk to a person</span>
+              <h2 id="enq-h">Not ready to post a brief? Just ask.</h2>
+              <p>
+                Tell us what you are planning and we will come back with who is available for it
+                and what the date looks like. No account, no obligation.
+              </p>
+              <ul className="enquiry-points">
+                <li>Every enquiry gets a reply, by email, from a person.</li>
+                <li>Your details are not shared with vendors unless you ask us to.</li>
+                <li>If you would rather browse first, the vendor pages are open.</li>
+              </ul>
+            </div>
+            <EnquiryForm occasions={occasionOptions} metros={metroOptions} source="/" />
+          </div>
         </div>
       </section>
 

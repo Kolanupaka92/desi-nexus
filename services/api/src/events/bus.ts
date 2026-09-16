@@ -21,6 +21,8 @@ export const TOPICS = {
   escrowRefunded: "ledger.escrow.refunded",
   disputeOpened: "ledger.dispute.opened",
   userVerified: "identity.user.verified",
+  /* A visitor left their details on the public form; somebody has to reply. */
+  enquiryReceived: "enquiry.received",
 } as const;
 
 export type Topic = (typeof TOPICS)[keyof typeof TOPICS];

@@ -22,7 +22,8 @@ the business"* and *"do not invent services merely for SEO"*. Those two
 instructions cannot both be satisfied by building the copy literally, so the
 site is built for the marketplace that exists. Concretely:
 
-- The primary action is **post a brief**, not "request a consultation".
+- The primary action is **post a brief**, with a **public enquiry form** beside
+  it for anybody not ready for that (see §7).
 - Social proof is the **published ranking weights** and the **escrow terms**,
   not testimonials. Both are checkable against the code.
 - "Moments we've helped create" has no honest equivalent yet, so there is no
@@ -51,11 +52,29 @@ The profile page renders nothing where a rating would go, and the
 `ProfessionalService` structured data omits `aggregateRating` entirely rather
 than defaulting it. When reviews exist, both pick the field up.
 
-## 2. Photography
+## 2. Photography, testimonials, and the sections waiting for them
 
 The repository has no image assets. Not "a few placeholders" — none: no
-`<img>`, no `next/image`, no object storage configured in `.env.example`, and
-no endpoint that can create a `portfolio_assets` row.
+`<img>`, no object storage configured in `.env.example`, and no endpoint that
+can create a `portfolio_assets` row.
+
+Two sections are **built and switched off**, rather than omitted:
+
+| Section | Turned on by | Renders when empty |
+| --- | --- | --- |
+| Gallery, with filtering | files in `apps/web/public/gallery/` + entries in `content/gallery.ts` | nothing at all |
+| Testimonials | entries in `content/testimonials.ts` | nothing at all |
+
+Both files carry the full instructions at the top, including the rules on
+permission (consent to photograph is not consent to publish, and a vendor's
+consent is not the family's) and on attribution (`credit` is required, because
+a marketplace showing a photographer's work unattributed is doing the thing it
+exists to stop). Both were verified with scratch fixtures — six generated
+images and three placeholder quotes — screenshotted, and then reverted; none of
+that content is in the repository.
+
+Rendering nothing when empty rather than a heading over a gap is what lets the
+page be complete today and *better* rather than *different* later.
 
 Filling the event-type and speciality cards with stock photography would be a
 claim about who works on this platform that is false, and it is also exactly
@@ -137,7 +156,43 @@ The colour tokens predate this work and are unchanged.
 | `Service` | speciality pages | The marketplace is the provider, not a local business with a storefront in eight metros. |
 | `ProfessionalService` | published vendor profiles | Every field read off the profile. `aggregateRating` omitted while no reviews exist. |
 
-## 7. Routes added
+## 7. The enquiry form
+
+Every other way into the marketplace requires an account. That is correct for
+booking — money and identity both depend on knowing who somebody is — and it
+was, until now, also the only way to ask a question: a visitor arriving from a
+WhatsApp link with a date and a question had to register, verify a phone and
+fill in a structured gig brief before they could say anything.
+
+`POST /v1/enquiries` is therefore the one endpoint that accepts input from
+somebody with no session, and three things follow:
+
+- **It is the strictest-but-one rate-limited write on the service**, keyed on
+  the client address. The bucket is 20/hour rather than the 5/hour that first
+  looked right: this audience is on phones, carrier CGNAT puts a large number
+  of real people behind one address, and a limit tight enough to feel safe
+  silently blocks leads that look identical to an attack. Twenty spam rows an
+  hour is a worse day than losing a customer you never hear about.
+- **A honeypot field** catches the untargeted majority before the limiter is
+  reached. It is a real rendered input moved off-screen — not `display: none`,
+  not `type="hidden"`, both of which a bot can detect and skip — kept out of
+  the tab order and out of the accessibility tree. A filled honeypot gets the
+  same `202` a real visitor gets, because telling a spammer which submissions
+  were dropped is how they tune around it.
+- **The application's database role has `INSERT` on `enquiries` and no
+  `SELECT`.** Migration 006 revokes it. This table is the one place holding
+  contact details of people who never became users, and it is the single most
+  valuable thing on the platform to steal, so the privilege to read it is not
+  attached to the credential the API uses. That is also why the insert has no
+  `RETURNING` clause and the service supplies the row id: `RETURNING` needs
+  `SELECT` on the columns it returns, which would have undone the whole
+  arrangement to recover one uuid.
+
+The outbox event carries the enquiry id, occasion, metro and date — no message
+body, no phone number, no address. An outbox row is the one copy of this data
+that leaves the table whose RLS protects it.
+
+## 8. Routes added
 
 - `/plan/[group]` — five pages, one per occasion group, generated from
   `PLANS` and `EVENT_GROUPS`. The speciality list on each is **computed** from
@@ -148,6 +203,10 @@ The colour tokens predate this work and are unchanged.
   whose only difference is a place name, which is a doorway set whatever it is
   called. The metro axis already has its own pages, written around what is
   actually different about each metro.
+
+- `/contact` — the enquiry form with the FAQ under it. The home page carries
+  the same form; this exists anyway because "contact" is what people type, look
+  for in a footer, and paste into a message when they forward the site on.
 
 - `/vendors/[slug]` — the public profile. The API gained
   `GET /v1/vendors/:slug` when publishing was added and nothing rendered it, so
@@ -161,12 +220,23 @@ The colour tokens predate this work and are unchanged.
   build-time query that fails the sitemap when the API is down, or a stale list
   that 404s the moment somebody unpublishes.
 
-## 8. Verification
+## 9. Verification
 
 `apps/web/e2e/screenshots.mjs` renders every public page at 390px and 1280px
 and asserts, per page: a 200, a clean console, no horizontal overflow, and
 exactly one `h1`. It also opens the mobile menu and checks it starts closed and
 becomes visible on tap. Screenshots land in `e2e/shots/`.
 
-This exists because the one regression the unit suite missed last cycle was
-caught by opening the app in a browser.
+`apps/web/e2e/enquiry-flow.mjs` drives the contact form the way a visitor does,
+at both widths: it checks the honeypot is off-screen, out of the tab order and
+out of the accessibility tree; submits a real enquiry; and checks the form is
+*replaced* by the confirmation rather than cleared, since a form that empties
+itself reads as a failure and people re-send.
+
+These exist because the regressions that matter here are not the ones a unit
+test sees. Two examples from this work alone: a payout gate applied one level
+too high emptied the vendor's own feed with every test still passing, and
+passing `label` as a prop from the home page into the `Gallery` client
+component 500'd the entire home page — React cannot serialise a function across
+that boundary, `next build` succeeds because the error happens at render rather
+than compile, and the page is dynamic, so CI would not have caught it either.
