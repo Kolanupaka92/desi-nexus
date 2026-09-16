@@ -6,6 +6,7 @@ import { label } from "@/lib/format";
 import { Breadcrumbs } from "@/components/site/Breadcrumbs";
 import { JsonLd } from "@/components/site/JsonLd";
 import { CTASection } from "@/components/site/CTASection";
+import { BRAND } from "@/content/brand";
 
 /**
  * The page a search actually lands on: one speciality, in one metro.
@@ -38,7 +39,7 @@ export async function generateMetadata({ params }: Params): Promise<Metadata> {
     title,
     description,
     alternates: { canonical: `/hire/${metro.slug}/${speciality.slug}` },
-    openGraph: { title: `${title} · DESI-NEXUS`, description, type: "website" },
+    openGraph: { title: `${title} · ${BRAND.name}`, description, type: "website" },
   };
 }
 
@@ -56,7 +57,7 @@ export default async function HirePage({ params }: Params) {
     "@context": "https://schema.org",
     "@type": "Service",
     serviceType: `South Asian event ${speciality.noun}`,
-    provider: { "@type": "Organization", name: "DESI-NEXUS" },
+    provider: { "@type": "Organization", name: BRAND.name },
     areaServed: metro.cities.map((city) => ({
       "@type": "City",
       name: city,

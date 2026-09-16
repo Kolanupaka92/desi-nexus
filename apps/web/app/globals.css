@@ -223,19 +223,80 @@ p, li { text-wrap: pretty; }
   gap: var(--space-4);
   min-height: 68px;
 }
-.wordmark {
+/*
+ * The logo lockup -- mark plus wordmark, in the header and the footer.
+ *
+ * Everything is sized in `em` from the lockup's own font-size, so the mark and
+ * the two words keep one fixed optical relationship and a placement is resized
+ * by changing a single value. The alternative -- a px width on the mark and a
+ * step on the type -- drifts the moment either end is touched, and drifts
+ * invisibly, because nothing fails.
+ */
+.logo {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.46em;
+  min-height: 44px;
   font-family: var(--serif);
   font-weight: 600;
   font-size: var(--step-1);
   letter-spacing: -0.02em;
+  line-height: 1;
   color: var(--ink);
   white-space: nowrap;
-  display: inline-flex;
-  align-items: center;
-  min-height: 44px;
 }
-.wordmark:hover { text-decoration: none; }
-.wordmark span { color: var(--marigold); }
+.logo:hover { text-decoration: none; }
+
+/*
+ * The mark takes the accent and the wordmark the neutral, so the lockup has
+ * one colour doing work rather than two competing. The SVG fills with
+ * `currentColor`, so a reversed placement sets `color` here and nothing else.
+ */
+.logo-mark {
+  /* Slightly over the wordmark's cap height, which is where a mark beside
+     all-caps type has to sit: matched exactly it reads as undersized. */
+  width: 1.36em;
+  height: 1.36em;
+  flex: none;
+  color: var(--maroon);
+}
+
+/*
+ * The separator is drawn, not typed. A literal "DESI·NEXUS" in the markup
+ * makes the accessible name "DESI middle dot NEXUS", puts a glyph nobody chose
+ * into anything that copies the text, and leaves the dot's size and colour at
+ * the mercy of the font. As a pseudo-element it is a shape with a size.
+ */
+.logo-word { display: inline-flex; align-items: center; }
+.logo-word > span + span { display: inline-flex; align-items: center; }
+.logo-word > span + span::before {
+  content: "";
+  flex: none;
+  width: 0.2em;
+  height: 0.2em;
+  margin: 0 0.34em;
+  /* All caps with no descenders sit high in the content box, so centring on
+     the box puts the dot low. This is the difference, measured at 64px. */
+  margin-bottom: 0.1em;
+  border-radius: 50%;
+  background: var(--marigold);
+}
+
+/* Mark over wordmark, for square placements. */
+.logo.stacked { flex-direction: column; gap: 0.4em; }
+.logo.stacked .logo-mark { width: 2.4em; height: 2.4em; }
+
+/*
+ * Reversed. Nothing on the site uses it yet -- the header and footer both sit
+ * on paper -- and it is here anyway, because the first dark placement (the
+ * hero band, an email header, a printed card) is exactly where a call site
+ * otherwise invents its own gold and the mark stops being one object. Three
+ * lines now is cheaper than two golds later. Gold on wine is the favicon's
+ * pairing, so the reversed lockup and the tab icon agree.
+ */
+.logo.reversed { color: var(--gold-soft); }
+.logo.reversed .logo-mark { color: var(--gold); }
+.logo.reversed .logo-word > span + span::before { background: var(--saffron); }
 
 .masthead nav {
   display: flex;

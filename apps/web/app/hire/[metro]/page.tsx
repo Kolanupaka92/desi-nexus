@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import { METROS, SPECIALITIES, metroBySlug } from "@/content/seo";
 import { Breadcrumbs } from "@/components/site/Breadcrumbs";
 import { CTASection } from "@/components/site/CTASection";
+import { BRAND } from "@/content/brand";
 
 /** The metro hub: every speciality we cover, for one place. */
 export const dynamic = "force-static";
@@ -27,7 +28,7 @@ export async function generateMetadata({ params }: Params): Promise<Metadata> {
     title,
     description,
     alternates: { canonical: `/hire/${metro.slug}` },
-    openGraph: { title: `${title} · DESI-NEXUS`, description, type: "website" },
+    openGraph: { title: `${title} · ${BRAND.name}`, description, type: "website" },
   };
 }
 

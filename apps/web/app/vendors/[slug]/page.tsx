@@ -7,6 +7,7 @@ import { METROS } from "@/content/seo";
 import { Breadcrumbs } from "@/components/site/Breadcrumbs";
 import { CTASection } from "@/components/site/CTASection";
 import { JsonLd } from "@/components/site/JsonLd";
+import { BRAND } from "@/content/brand";
 
 /**
  * A vendor's public page.
@@ -189,7 +190,7 @@ export default async function VendorPage({ params }: Params) {
               <h2>On this platform</h2>
               <p style={{ margin: 0 }}>
                 {vendor.completedGigs} {vendor.completedGigs === 1 ? "booking" : "bookings"}{" "}
-                completed through DESI-NEXUS, paid through escrow.
+                completed through {BRAND.name}, paid through escrow.
               </p>
             </div>
           )}

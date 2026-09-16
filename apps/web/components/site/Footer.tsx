@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { Logo } from "@/components/site/Logo";
 import { METROS, SPECIALITIES } from "@/content/seo";
 
 /**
@@ -35,9 +36,7 @@ export function Footer() {
       <div className="shell">
         <div className="foot-grid">
           <div className="foot-brand">
-            <Link href="/" className="wordmark">
-              DESI<span>·</span>NEXUS
-            </Link>
+            <Logo />
             <p>
               Makeup artists, photographers, henna artists, pandits, decorators and creators for
               South Asian events across Texas — matched on the functions they have actually
