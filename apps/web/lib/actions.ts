@@ -32,7 +32,9 @@ function explain(error: unknown): FormState {
         : error.message;
     return { error: message, ...(details?.field ? { field: details.field } : {}) };
   }
-  if (error instanceof Error && /fetch failed|ECONNREFUSED/.test(error.message)) {
+  // TimeoutError is what AbortSignal.timeout throws; it is the same outage to
+  // the person reading the page as a refused connection.
+  if (error instanceof Error && /fetch failed|ECONNREFUSED|timed out|aborted/i.test(error.message)) {
     return { error: "Cannot reach the booking service right now. Please try again in a moment." };
   }
   return { error: "Something went wrong. Please try again." };
