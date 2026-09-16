@@ -93,6 +93,13 @@ test("a date that is not a date is refused before it reaches the column", () => 
   });
 });
 
+test("a new enquiry is always new, whatever the body claims", () => {
+  // `status` is ops state: it is how somebody marks a lead as contacted or as
+  // spam. A caller setting it would be filing their own enquiry as handled.
+  const enquiry = normaliseEnquiry({ id: "e1", ...GOOD, status: "converted" } as never);
+  assert.equal(enquiry.status, "new");
+});
+
 // --- The endpoint, against both stores -------------------------------------
 
 for (const backing of ["memory", "postgres"] as const) {
@@ -155,6 +162,19 @@ for (const backing of ["memory", "postgres"] as const) {
     assert.equal(serialised.includes("555-0123"), false, "no phone number in the outbox");
     assert.equal(serialised.includes("Frisco"), false, "no message body in the outbox");
     assert.equal(serialised.includes("example.com"), false, "no address in the outbox");
+  });
+
+  test(`[${backing}] the caller cannot choose the row's identifier`, { skip: gate }, async () => {
+    // Spread the wrong way round, a body carrying `id` sets the primary key:
+    // a 500 from the uuid column for anything malformed, and a way to probe
+    // for collisions for anything well-formed.
+    const h = harness(build());
+    const response = await h.call("POST", "/v1/enquiries", {
+      body: { ...GOOD, id: "not-a-uuid", status: "converted" },
+    });
+    assert.equal(response.status, 202, JSON.stringify(response.body));
+    assert.notEqual((response.body as { id: string }).id, "not-a-uuid");
+    assert.match((response.body as { id: string }).id, /^[0-9a-f-]{36}$/);
   });
 
   test(`[${backing}] leaving an enquiry needs no session and grants none`, { skip: gate }, async () => {

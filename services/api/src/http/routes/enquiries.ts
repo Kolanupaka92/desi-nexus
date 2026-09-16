@@ -61,7 +61,12 @@ export function registerEnquiryRoutes(router: Router, deps: AppDeps): void {
       field(ctx, "email", isString);
       field(ctx, "message", isString);
 
-      const enquiry = normaliseEnquiry({ id: randomUUID(), ...body } as never);
+      // The id last, so a body carrying its own `id` cannot set the primary
+      // key. Spread the other way round it could: `{ id: randomUUID(), ...body }`
+      // lets a caller choose the row's identifier, which is a 500 from the uuid
+      // column for anything malformed and a way to probe for collisions for
+      // anything well-formed.
+      const enquiry = normaliseEnquiry({ ...body, id: randomUUID() } as never);
 
       // The taxonomy and the metro list are closed sets, and a value outside
       // them is a foreign key violation at the database -- which would surface

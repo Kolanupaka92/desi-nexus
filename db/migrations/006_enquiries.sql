@@ -96,18 +96,44 @@ DO $$
 DECLARE
     target text := current_schema();
 BEGIN
-    -- 003 granted the app role SELECT, INSERT and UPDATE on every table in the
-    -- schema, including ones created later by default privileges. Revoking
-    -- here rather than relying on the policy alone means the restriction holds
-    -- at the privilege layer too, where it does not depend on a policy being
-    -- written correctly.
-    IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'desi_nexus_app') THEN
-        EXECUTE format('GRANT INSERT ON %I.enquiries TO desi_nexus_app', target);
-        EXECUTE format('REVOKE SELECT, UPDATE, DELETE ON %I.enquiries FROM desi_nexus_app', target);
-    END IF;
-    IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'desi_nexus_system') THEN
-        EXECUTE format('GRANT SELECT, INSERT, UPDATE ON %I.enquiries TO desi_nexus_system', target);
-    END IF;
+    -- Both roles are ensured here rather than assumed.
+    --
+    -- In a production run 003 and 004 have already created them, so these are
+    -- no-ops. They are not no-ops everywhere: the test harness applies the
+    -- schema migrations (001, 002, 005, 006) and only afterwards applies 003
+    -- and 004, because exercising those two is a different file's job. Written
+    -- with IF EXISTS guards instead, this migration quietly skipped its own
+    -- grants and its own policy in that order and left the table row-level
+    -- secured with no policy reaching anybody -- which the RLS suite's
+    -- "every RLS table has a policy for every command" invariant caught, and
+    -- which a developer whose cluster already had the roles would not have
+    -- seen locally.
+    --
+    -- Created by catching the duplicate rather than checking first, as in 003
+    -- and 004: parallel test files apply these migrations concurrently, and
+    -- check-then-create loses that race intermittently. No password, also as
+    -- in 003 and 004: it is issued and rotated out of band.
+    BEGIN
+        CREATE ROLE desi_nexus_app LOGIN;
+    EXCEPTION WHEN duplicate_object THEN
+        NULL;
+    END;
+    BEGIN
+        CREATE ROLE desi_nexus_system LOGIN;
+    EXCEPTION WHEN duplicate_object THEN
+        NULL;
+    END;
+
+    EXECUTE format('GRANT USAGE ON SCHEMA %I TO desi_nexus_app, desi_nexus_system', target);
+
+    -- 003 grants the app role SELECT, INSERT and UPDATE on every table in the
+    -- schema, and its default privileges extend that to tables created later --
+    -- which includes this one. Revoking here rather than relying on the policy
+    -- alone means the restriction holds at the privilege layer too, where it
+    -- does not depend on a policy being written correctly.
+    EXECUTE format('GRANT INSERT ON %I.enquiries TO desi_nexus_app', target);
+    EXECUTE format('REVOKE SELECT, UPDATE, DELETE ON %I.enquiries FROM desi_nexus_app', target);
+    EXECUTE format('GRANT SELECT, INSERT, UPDATE ON %I.enquiries TO desi_nexus_system', target);
 END
 $$;
 
@@ -122,21 +148,17 @@ CREATE POLICY enquiries_insert_public ON enquiries
 -- only a superuser can grant is not available on managed Postgres, and a
 -- policy naming the role is visible to a reviewer.
 --
--- Guarded on the role existing, because the test harness applies the schema
--- migrations without 003 and 004 -- the two that create the roles -- so an
--- unguarded TO clause here would fail every database test with "role does not
--- exist" rather than with anything about enquiries.
-DO $$
-BEGIN
-    IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'desi_nexus_system') THEN
-        DROP POLICY IF EXISTS enquiries_system_access ON enquiries;
-        CREATE POLICY enquiries_system_access ON enquiries
-            FOR ALL
-            TO desi_nexus_system
-            USING (true)
-            WITH CHECK (true);
-    END IF;
-END
-$$;
+-- Unconditional: the DO block above guarantees the role exists whatever order
+-- the migrations ran in. This policy is also what satisfies the RLS suite's
+-- invariant that every row-level-secured table carries a policy for every
+-- command the service runs -- FOR ALL counts as one. It does not widen
+-- anything for the application: the policy is scoped TO desi_nexus_system, so
+-- a SELECT by desi_nexus_app still matches no policy and returns no rows.
+DROP POLICY IF EXISTS enquiries_system_access ON enquiries;
+CREATE POLICY enquiries_system_access ON enquiries
+    FOR ALL
+    TO desi_nexus_system
+    USING (true)
+    WITH CHECK (true);
 
 COMMIT;

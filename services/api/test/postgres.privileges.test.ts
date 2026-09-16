@@ -92,3 +92,54 @@ test("join tables the service rewrites are deletable, because a set is replaced"
     assert.ok(await may("DELETE", table), `${table} must be replaceable`);
   }
 });
+
+/**
+ * Enquiries: writable by the application, readable only by the system role.
+ *
+ * This table holds the contact details of people who never became users, which
+ * makes it the most obviously valuable thing on the platform to steal. 006
+ * revokes SELECT from the application role so that no session, no role and no
+ * mistake in a route can turn into a read of it.
+ *
+ * The order here is the adversarial one on purpose. `createTestSchema` applies
+ * 006, and then the `before` hook above applies 003 -- whose blanket
+ * `GRANT SELECT, INSERT, UPDATE ON ALL TABLES` re-grants exactly what 006 took
+ * away. Production runs the migrations the other way round and the revoke
+ * stands, but an operator re-applying 003 would silently reopen the table, so
+ * the privilege is not the thing worth depending on.
+ *
+ * The thing worth depending on is the policy. RLS is enabled and FORCEd on the
+ * table and there is no SELECT policy for the application role, so a SELECT by
+ * that role returns no rows whether or not it holds the privilege. Two
+ * independent layers, and this asserts the one that survives.
+ */
+test("the application role can add an enquiry", { skip }, async () => {
+  assert.ok(await may("INSERT", "test_privs.enquiries"), "the public form has to be able to write");
+});
+
+test("enquiries stay unreadable even when the privilege is granted back", { skip }, async () => {
+  // Re-grant it, which is what a re-run of 003 does.
+  await db.query(`GRANT SELECT ON test_privs.enquiries TO desi_nexus_app`);
+  assert.ok(await may("SELECT", "test_privs.enquiries"), "the privilege is back");
+
+  const policyRows = await db.query<{ policies: number }>(
+    `SELECT count(*)::int AS policies
+       FROM pg_policies
+      WHERE schemaname = 'test_privs'
+        AND tablename = 'enquiries'
+        AND cmd IN ('SELECT', 'ALL')
+        AND (roles = '{public}' OR 'desi_nexus_app' = ANY(roles))`,
+  );
+  assert.equal(
+    policyRows[0]?.policies,
+    0,
+    "no SELECT policy may reach the application role; without one, RLS returns no rows to it however the privileges are set",
+  );
+
+  const forcedRows = await db.query<{ forced: boolean }>(
+    `SELECT relrowsecurity AND relforcerowsecurity AS forced
+       FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace
+      WHERE n.nspname = 'test_privs' AND c.relname = 'enquiries'`,
+  );
+  assert.equal(forcedRows[0]?.forced, true, "RLS must be enabled and forced, or the owner reads straight through it");
+});

@@ -180,7 +180,24 @@ somebody with no session, and three things follow:
   same `202` a real visitor gets, because telling a spammer which submissions
   were dropped is how they tune around it.
 - **The application's database role has `INSERT` on `enquiries` and no
-  `SELECT`.** Migration 006 revokes it. This table is the one place holding
+  `SELECT`.** Migration 006 revokes it, and — more importantly — no RLS policy
+  on the table reaches that role, so it reads zero rows even if a later
+  migration grants the privilege back. Both layers are asserted in
+  `postgres.privileges.test.ts`, which re-grants `SELECT` and checks the rows
+  stay invisible.
+
+  Getting this right took two goes. The first version guarded its grants and
+  its system-role policy on `IF EXISTS (… pg_roles …)`, because the test
+  harness applies the schema migrations before 003 and 004 — the two that
+  create the roles. On a cluster where the roles did not exist yet, 006 quietly
+  skipped its own policy and left the table row-level secured with no policy
+  reaching anybody. The RLS suite's "every RLS table has a policy for every
+  command" invariant caught it in CI; it passed locally only because this
+  machine's cluster already had the roles from earlier runs. 006 now creates
+  both roles if they are missing, in the same `EXCEPTION WHEN duplicate_object`
+  idiom 003 and 004 use, so it no longer depends on the order it is applied in.
+  Re-verified against a freshly `initdb`-ed cluster with no `desi_nexus` roles,
+  and mutation-checked: restoring the guards reproduces the CI failure exactly. This table is the one place holding
   contact details of people who never became users, and it is the single most
   valuable thing on the platform to steal, so the privilege to read it is not
   attached to the credential the API uses. That is also why the insert has no
