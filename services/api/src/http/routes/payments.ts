@@ -14,7 +14,7 @@ import { applyTransition, hoursUntil } from "./gigs.js";
 import { quoteBooking, DEFAULT_FEES } from "../../domain/money.js";
 import { quoteTravel } from "../../domain/geo.js";
 import { refundFraction, AUTO_RELEASE_HOURS } from "../../domain/gig.js";
-import { canReceivePayouts } from "../../domain/users.js";
+import { canReceivePayouts, meetsVerification } from "../../domain/users.js";
 import {
   assertLedgerBalances,
   createEscrow,
@@ -398,6 +398,42 @@ export function registerPaymentRoutes(router: Router, deps: AppDeps): void {
   );
 
   /**
+   * Begin identity verification.
+   *
+   * Returns Stripe's hosted URL and nothing else. The vendor submits their
+   * document to Stripe, not to us, so no government ID ever reaches this
+   * service -- the same argument that keeps card numbers out of it.
+   *
+   * This route cannot grant verification. It only opens a session; the level is
+   * raised by the signed webhook below, because a client that could assert its
+   * own verification could also assert its way to a payout.
+   */
+  router.post(
+    "/v1/identity/verify",
+    async (ctx) => {
+      const userId = ctx.auth?.sub as string;
+      const user = await store.users.byId(userId);
+      if (!user) throw new HttpError(404, "not_found", "user not found");
+
+      if (meetsVerification(user.verification, "id_verified")) {
+        // Already verified. Say so rather than opening a session that would
+        // charge for a check nobody needs.
+        return { status: 200, body: { verification: user.verification, alreadyVerified: true } };
+      }
+
+      const session = await stripe.createIdentitySession({ userId });
+      return {
+        status: 201,
+        body: { sessionId: session.id, verificationUrl: session.url, status: session.status },
+      };
+    },
+    requireAuth,
+    requireRole("crew", "creator"),
+    requireMfa(),
+    paymentLimit,
+  );
+
+  /**
    * The Stripe webhook. Signature-verified, and the only path that may record a
    * capture. The body is read raw because re-serialised JSON will not match the
    * signature.
@@ -416,6 +452,26 @@ export function registerPaymentRoutes(router: Router, deps: AppDeps): void {
     const escrowId = typeof object.escrowId === "string" ? object.escrowId : undefined;
     const intentId = typeof object.id === "string" ? object.id : undefined;
     const amount = typeof object.amount === "number" ? object.amount : undefined;
+
+    // Identity verification comes back on the same signed endpoint. Handled
+    // before the payment branch because it carries none of a payment's fields.
+    if (event.type === "identity.verification_session.verified") {
+      const metadata = (object.metadata ?? {}) as Record<string, unknown>;
+      const subjectId = typeof metadata.userId === "string" ? metadata.userId : undefined;
+      if (!subjectId) return { status: 200, body: { received: true, handled: false } };
+
+      const subject = await store.users.byId(subjectId);
+      if (!subject) return { status: 200, body: { received: true, handled: false } };
+
+      // Never move someone down. A replayed event, or one arriving after a
+      // later upgrade, must not cost a vendor a level they already hold.
+      if (meetsVerification(subject.verification, "id_verified")) {
+        return { status: 200, body: { received: true, handled: false, verification: subject.verification } };
+      }
+
+      const promoted = await store.users.update(subjectId, { verification: "id_verified" });
+      return { status: 200, body: { received: true, handled: true, verification: promoted.verification } };
+    }
 
     if (event.type !== "payment_intent.succeeded" || !escrowId || !intentId || amount === undefined) {
       // Acknowledge anything else so Stripe stops retrying an event we do not

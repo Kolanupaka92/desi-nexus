@@ -16,6 +16,7 @@
 import Stripe from "stripe";
 import { assertCents } from "../../domain/money.js";
 import type {
+  IdentitySessionRef,
   ConnectAccountRef,
   CreateIntentInput,
   PaymentIntentRef,
@@ -89,6 +90,28 @@ export class LiveStripeGateway implements StripeGateway {
    * cannot be made, which is why the booking path refuses a vendor whose
    * account is not yet enabled.
    */
+  async createIdentitySession(input: { userId: string; returnUrl?: string }): Promise<IdentitySessionRef> {
+    return this.call("createIdentitySession", async () => {
+      const session = await this.stripe.identity.verificationSessions.create(
+        {
+          type: "document",
+          // The webhook has no session to act as, so the user id has to travel
+          // with the verification and come back on the event.
+          metadata: { userId: input.userId },
+          ...(input.returnUrl ? { return_url: input.returnUrl } : {}),
+        },
+        // Keyed on the user: a double-submitted request must not leave one
+        // vendor with two open verifications.
+        { idempotencyKey: `identity_session_${input.userId}` },
+      );
+      return {
+        id: session.id,
+        url: session.url ?? "",
+        status: session.status as IdentitySessionRef["status"],
+      };
+    });
+  }
+
   async createConnectAccount(input: { userId: string; email: string }): Promise<ConnectAccountRef> {
     return this.call("createConnectAccount", async () => {
       const account = await this.stripe.accounts.create(
