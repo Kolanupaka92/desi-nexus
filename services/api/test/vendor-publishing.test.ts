@@ -208,6 +208,38 @@ for (const backing of ["memory", "postgres"] as const) {
     );
   });
 
+  /*
+   * The address is the feature. If two vendors can hold one slug then
+   * /vendors/anjali-studio resolves to whichever the store reached first, and
+   * the link a vendor puts in an Instagram bio points at somebody else.
+   *
+   * Asserted against both backings on purpose: PostgreSQL has a UNIQUE column
+   * and the in-memory store had nothing, so this property held in production
+   * and silently did not hold in development, where DATABASE_URL is unset.
+   */
+  test(`[${backing}] two vendors cannot hold one address`, { skip: gate }, async () => {
+    const h = harness(build());
+    await publishableVendor(h, at("first"));
+
+    const second = await onboard(h, { email: at("second"), roles: ["crew"], homeBase: PLANO });
+    const clash = await h.call("POST", "/v1/profiles/crew", {
+      token: second.token,
+      body: { ...COMPLETE, businessName: "Another Studio" },
+    });
+    assert.equal(clash.status, 409, JSON.stringify(clash.body));
+    assert.equal((clash.body as { error: { code: string } }).error.code, "slug_taken");
+  });
+
+  test(`[${backing}] a vendor can re-save their own profile without colliding with themselves`, { skip: gate }, async () => {
+    const h = harness(build());
+    const vendor = await publishableVendor(h, at("resave"));
+    const again = await h.call("POST", "/v1/profiles/crew", {
+      token: vendor.token,
+      body: { ...COMPLETE, headline: "Telugu and Tamil bridal makeup across Dallas-Fort Worth" },
+    });
+    assert.equal(again.status, 201, JSON.stringify(again.body));
+  });
+
   test(`[${backing}] publishing does not open the roster`, { skip: gate }, async () => {
     // The whole bargain: one vendor can be public without the competitor list
     // becoming public. Vendor search stays host-only.

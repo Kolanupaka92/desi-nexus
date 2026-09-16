@@ -10,6 +10,7 @@ import type { BaseUser, CrewProfile, CreatorProfile, HostProfile } from "../doma
 import type { Gig } from "../domain/gig.js";
 import type { Escrow } from "../domain/escrow.js";
 import type { Cents } from "../domain/money.js";
+import { UNIQUE_VIOLATION } from "./postgres/db.js";
 
 export interface Application {
   readonly id: string;
@@ -201,7 +202,35 @@ class MemoryProfiles implements ProfileRepository {
     };
   }
 
+  /**
+   * Slugs are unique across every vendor, and this store has to say so too.
+   *
+   * The SQL schema enforces it with a UNIQUE column; in memory there is no
+   * constraint to lean on, so two vendors could both hold `anjali-studio` and
+   * `publishedBySlug` would return whichever the iteration order reached
+   * first -- one public address quietly resolving to either of two people.
+   * That is not a difference the tests would have caught, because the
+   * assertions that run against both backings never claimed one address twice.
+   *
+   * The error carries PostgreSQL's unique-violation code so the routes need
+   * exactly one branch for it rather than one per store. Development runs on
+   * this store when DATABASE_URL is unset, which is precisely where a
+   * constraint that exists only in production is worth nothing.
+   */
+  private assertSlugFree(profile: CrewProfile): void {
+    if (!profile.slug) return;
+    for (const other of this.crewMap.values()) {
+      if (other.userId !== profile.userId && other.slug === profile.slug) {
+        throw Object.assign(new Error(`slug ${profile.slug} is already in use`), {
+          code: UNIQUE_VIOLATION,
+          constraint: "crew_profiles_slug_key",
+        });
+      }
+    }
+  }
+
   async putCrew(profile: CrewProfile): Promise<CrewProfile> {
+    this.assertSlugFree(profile);
     const kept = MemoryProfiles.preserve(this.crewMap.get(profile.userId), profile);
     this.crewMap.set(profile.userId, clone(kept));
     return clone(kept);

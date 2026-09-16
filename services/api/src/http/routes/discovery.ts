@@ -100,7 +100,25 @@ export function registerDiscoveryRoutes(router: Router, deps: AppDeps): void {
         throw error;
       }
 
-      const saved = await store.profiles.putCrew(profile);
+      /*
+       * The slug is unique across every vendor, so saving one that another
+       * vendor already holds is a conflict, not a server fault. Without this
+       * the constraint surfaced as a bare 500 "something went wrong" and the
+       * vendor had no way to know which field to change -- and the publish
+       * route two handlers down already translated the same violation, so the
+       * two paths disagreed about whether a taken address was the caller's
+       * problem or ours. Found by claiming one address twice against a real
+       * database.
+       */
+      let saved;
+      try {
+        saved = await store.profiles.putCrew(profile);
+      } catch (error) {
+        if (isPgError(error, UNIQUE_VIOLATION)) {
+          throw new HttpError(409, "slug_taken", `the address ${profile.slug} is already in use`);
+        }
+        throw error;
+      }
       return { status: 201, body: { profile: saved } };
     },
     requireAuth,
