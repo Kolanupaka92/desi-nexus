@@ -26,6 +26,9 @@ export const BRAND = {
    * Split so the separator can be styled without a hyphen character sitting in
    * the accessible name -- a screen reader should say the name, not spell the
    * punctuation, and search results should not show a stray glyph.
+   *
+   * One entry per word, and the length is the word count: `["UTSAV"]` is a
+   * one-word name and draws no separator. Do not pad it to two entries.
    */
   wordmark: ["DESI", "NEXUS"] as const,
   /** One line, for meta descriptions and the footer. */

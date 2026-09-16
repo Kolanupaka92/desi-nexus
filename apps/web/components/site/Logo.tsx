@@ -43,9 +43,17 @@ export function Mark({ className, title }: { className?: string; title?: string 
 /**
  * Mark plus wordmark, as one link home.
  *
- * The separator between the two words is drawn by CSS rather than typed, so
- * the accessible name is "DESI NEXUS" and not "DESI middle dot NEXUS". A
- * screen reader should read a company's name, not spell its punctuation.
+ * The separator between words is drawn by CSS rather than typed, so the
+ * accessible name is "DESI NEXUS" and not "DESI middle dot NEXUS". A screen
+ * reader should read a company's name, not spell its punctuation.
+ *
+ * The words are mapped, not destructured. Destructuring a pair hard-codes a
+ * two-word name: given a one-word `wordmark` it still emitted two spans, the
+ * second empty, and the CSS separator -- which fires on `span + span` -- drew
+ * a marigold dot after the name with nothing following it. Measured in
+ * Chromium: two spans, one dot. Mapping makes the dot count fall out of the
+ * word count, so a one-word name has no separator without anyone remembering
+ * to remove one. Half the names on the shortlist are one word.
  */
 export function Logo({
   className,
@@ -55,7 +63,6 @@ export function Logo({
   /** Mark above wordmark, for tight or square placements. */
   stacked?: boolean;
 }) {
-  const [first, second] = BRAND.wordmark;
   return (
     <Link
       href="/"
@@ -64,8 +71,9 @@ export function Logo({
     >
       <Mark className="logo-mark" />
       <span className="logo-word" aria-hidden="true">
-        <span>{first}</span>
-        <span>{second}</span>
+        {BRAND.wordmark.map((part) => (
+          <span key={part}>{part}</span>
+        ))}
       </span>
     </Link>
   );
