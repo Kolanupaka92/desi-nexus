@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { cookies } from "next/headers";
 import { ACCESS_COOKIE } from "@/lib/api";
+import { BRAND } from "@/content/brand";
 import { display, text } from "@/lib/fonts";
 import { Header } from "@/components/site/Header";
 import { Footer } from "@/components/site/Footer";
@@ -20,17 +21,17 @@ const SITE = process.env.NEXT_PUBLIC_SITE_URL ?? "https://desi-nexus.com";
 export const metadata: Metadata = {
   metadataBase: new URL(SITE),
   title: {
-    default: "DESI-NEXUS — South Asian event talent in Texas",
-    template: "%s · DESI-NEXUS",
+    default: `${BRAND.name} — ${BRAND.tagline}`,
+    template: `%s · ${BRAND.name}`,
   },
   description:
     "Book verified makeup artists, photographers, henna artists, pandits and creators for South Asian events across Dallas-Fort Worth, Houston, Austin and San Antonio.",
   openGraph: {
-    title: "DESI-NEXUS — South Asian event talent in Texas",
+    title: `${BRAND.name} — ${BRAND.tagline}`,
     description:
       "Verified crew and creators for Sangeets, Half-Saree Functions, Griha Pravesham, boutique shoots and more.",
     type: "website",
-    siteName: "DESI-NEXUS",
+    siteName: BRAND.name,
   },
   twitter: { card: "summary_large_image" },
   // The browser tab colour, matched to the hero rather than left white, so a
@@ -59,7 +60,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
               {
                 "@type": "Organization",
                 "@id": `${SITE}/#organization`,
-                name: "DESI-NEXUS",
+                name: BRAND.name,
                 url: SITE,
                 description:
                   "A marketplace connecting South Asian event hosts in Texas with the crew and creators who work their events.",
@@ -72,7 +73,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
                 "@type": "WebSite",
                 "@id": `${SITE}/#website`,
                 url: SITE,
-                name: "DESI-NEXUS",
+                name: BRAND.name,
                 publisher: { "@id": `${SITE}/#organization` },
                 inLanguage: "en-US",
               },

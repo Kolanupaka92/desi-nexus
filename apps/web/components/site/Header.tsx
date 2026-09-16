@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { Logo } from "@/components/site/Logo";
 
 /**
  * The site header.
@@ -17,9 +18,7 @@ export function Header({ signedIn }: { signedIn: boolean }) {
   return (
     <header className="masthead">
       <div className="shell">
-        <Link href="/" className="wordmark">
-          DESI<span>·</span>NEXUS
-        </Link>
+        <Logo />
 
         <input
           type="checkbox"

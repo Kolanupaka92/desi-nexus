@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { METROS, SPECIALITIES } from "@/content/seo";
 import { CTASection } from "@/components/site/CTASection";
+import { BRAND } from "@/content/brand";
 
 /**
  * The supply side's own page.
@@ -19,7 +20,7 @@ export const metadata: Metadata = {
     "Get booked for South Asian functions across Texas. Payment is held in escrow before the day, travel is quoted round trip, and you are ranked on what you actually specialise in.",
   alternates: { canonical: "/for-vendors" },
   openGraph: {
-    title: "Get booked for the functions you actually specialise in · DESI-NEXUS",
+    title: `Get booked for the functions you actually specialise in · ${BRAND.name}`,
     description:
       "Escrow before the event, round-trip travel in every quote, and matching on cultural fit rather than who paid for placement.",
     type: "website",
@@ -54,7 +55,7 @@ export default function ForVendorsPage() {
           Get booked for the functions you actually specialise in.
         </h1>
         <p className="lede">
-          DESI-NEXUS matches South Asian event work across Texas on cultural fit first. If you do
+          {BRAND.name} matches South Asian event work across Texas on cultural fit first. If you do
           Telugu bridal, you are shown Telugu bridal &mdash; not every &ldquo;wedding
           makeup&rdquo; lead within fifty miles.
         </p>
