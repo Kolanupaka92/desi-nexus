@@ -9,9 +9,18 @@
  * This file closes that gap from both directions: the ordinary booking flow has
  * to complete as the restricted role, and a stranger has to be unable to read
  * or touch either party's rows.
+ *
+ * It connects as throwaway logins that are members of the real roles, rather
+ * than by issuing the real roles a password of its own. Roles are cluster-wide,
+ * so a password set here is not contained by this file's schema the way its
+ * tables are: it rewrites a credential every other connection to the cluster
+ * shares. A developer running the suite while a local API server is up against
+ * the same cluster would watch that server start failing every new connection
+ * with 28P01, with nothing pointing back here as the cause.
  */
 import test, { after, before, beforeEach } from "node:test";
 import assert from "node:assert/strict";
+import { randomBytes } from "node:crypto";
 import { connect, routed, withUnitOfWork, type Database } from "../src/infra/postgres/db.js";
 import { createPostgresStore } from "../src/infra/postgres/store.js";
 import { createTestSchema, migration, skipWithoutDatabase, truncateAll, TEST_DATABASE_URL } from "./db.js";
@@ -19,6 +28,36 @@ import { harness, onboard, payoutReadyVendor, postWebhook, BRIEF, FRISCO, type H
 
 const skip = skipWithoutDatabase;
 const SCHEMA = "test_rls";
+
+/** The roles a deployment connects as, and which 003 and 004 configure. */
+const APP_ROLE = "desi_nexus_app";
+const SYSTEM_ROLE = "desi_nexus_system";
+
+/**
+ * This run's own logins, one per real role.
+ *
+ * They are members of the real roles and hold nothing directly, so they carry
+ * production's access control rather than an approximation of it:
+ *
+ *  - Privileges arrive by inheritance, so the DELETE and UPDATE that 003 and
+ *    004 withhold are withheld here too.
+ *  - The policies in 004 apply because a policy's role list matches inherited
+ *    membership, so the exemption written `TO desi_nexus_system` exempts a
+ *    member of it exactly as it exempts the role itself -- and does nothing
+ *    for a member of desi_nexus_app.
+ *
+ * INHERIT is load-bearing on both counts: a NOINHERIT member gets neither the
+ * grants nor the exemption, and this file would fail rather than pass hollowly.
+ *
+ * Suffixed per run so that parallel test files -- and a leftover from a run
+ * killed before its after() hook -- cannot collide on the name.
+ */
+const RUN = randomBytes(6).toString("hex");
+const runRoles = [
+  { name: `${APP_ROLE}_test_${RUN}`, memberOf: APP_ROLE, password: randomBytes(18).toString("hex") },
+  { name: `${SYSTEM_ROLE}_test_${RUN}`, memberOf: SYSTEM_ROLE, password: randomBytes(18).toString("hex") },
+] as const;
+const [RUN_APP, RUN_SYSTEM] = runRoles;
 
 let owner: Database;
 let appDb: Database;
@@ -42,20 +81,37 @@ before(async () => {
   await owner.query(migration("003_app_role.sql"));
   await owner.query(migration("004_rls_write_policies.sql"));
   // The migrations deliberately set no passwords; the secret manager issues
-  // them in a real deployment. Here the test does.
-  await owner.query(`ALTER ROLE desi_nexus_app WITH PASSWORD 'rls_app_pw'`);
-  await owner.query(`ALTER ROLE desi_nexus_system WITH PASSWORD 'rls_sys_pw'`);
+  // them in a real deployment. This run issues its own to roles it also drops,
+  // so whatever the cluster holds for the real two is left exactly as found.
+  //
+  // Both the names and the passwords are randomBytes hex, so there is nothing
+  // in either that could need quoting in the DDL below -- which is just as
+  // well, because a role name cannot be a bind parameter.
+  for (const role of runRoles) {
+    await owner.query(`CREATE ROLE ${role.name} LOGIN INHERIT PASSWORD '${role.password}'`);
+    await owner.query(`GRANT ${role.memberOf} TO ${role.name}`);
+  }
 
   const searchPath = [SCHEMA, "public"];
-  appDb = connect({ connectionString: urlAs("desi_nexus_app", "rls_app_pw"), searchPath });
-  systemDb = connect({ connectionString: urlAs("desi_nexus_system", "rls_sys_pw"), searchPath });
+  appDb = connect({ connectionString: urlAs(RUN_APP.name, RUN_APP.password), searchPath });
+  systemDb = connect({ connectionString: urlAs(RUN_SYSTEM.name, RUN_SYSTEM.password), searchPath });
   store = createPostgresStore(routed(appDb, systemDb));
 });
 
 after(async () => {
+  // The pools have to go first: these are the logins they authenticated as.
   if (appDb) await appDb.close();
   if (systemDb) await systemDb.close();
-  if (owner) await owner.close();
+  if (owner) {
+    // Left behind, each run would add a login to a cluster that is usually
+    // shared with the next run. Dropping them outright needs no REASSIGN
+    // OWNED first: they create no tables or sequences, and the rows they
+    // wrote are not owned by a role the way an object is.
+    for (const role of runRoles) {
+      await owner.query(`DROP ROLE IF EXISTS ${role.name}`);
+    }
+    await owner.close();
+  }
 });
 
 beforeEach(async () => {
@@ -79,17 +135,47 @@ test("a unit of work does not lend its connection to a handle pinned elsewhere",
       .query<{ role: string }>("SELECT current_user AS role");
     return rows[0]?.role;
   });
-  assert.equal(borrowed, "desi_nexus_app", "the pinned handle opened its own transaction");
+  assert.equal(borrowed, RUN_APP.name, "the pinned handle opened its own transaction");
 });
 
 test("the role the service connects as does not own the tables", { skip }, async () => {
   // If it did, every policy below would be bypassed and this file would pass
-  // while proving nothing.
+  // while proving nothing. Checked for the login this run connects as, as well
+  // as for the real role, since it is the former that issues the statements.
   const rows = await owner.query<{ owner: string }>(
     `SELECT tableowner AS owner FROM pg_tables WHERE schemaname = $1 AND tablename = 'gigs'`,
     [SCHEMA],
   );
-  assert.notEqual(rows[0]?.owner, "desi_nexus_app");
+  assert.notEqual(rows[0]?.owner, APP_ROLE);
+  assert.notEqual(rows[0]?.owner, RUN_APP.name);
+});
+
+test("the policies bind the connection this file actually uses", { skip }, async () => {
+  // The two halves of the arrangement that lets this file exercise production's
+  // access control without touching production's credentials. If a future
+  // change reverts to connecting as the real roles directly, the second
+  // assertion fails here rather than surfacing as a cluster-wide 28P01 in
+  // whatever else was pointed at the same database.
+  const connectedAs = async (db: Database): Promise<string | undefined> => {
+    const rows = await db.query<{ role: string }>("SELECT current_user AS role");
+    return rows[0]?.role;
+  };
+  assert.equal(await connectedAs(appDb), RUN_APP.name);
+  assert.equal(await connectedAs(systemDb), RUN_SYSTEM.name);
+
+  // Membership is what carries the privileges and the TO-scoped policies over.
+  const inherits = async (role: string, parent: string): Promise<boolean> => {
+    const rows = await owner.query<{ ok: boolean }>(
+      `SELECT pg_has_role($1, $2, 'USAGE') AS ok`,
+      [role, parent],
+    );
+    return rows[0]?.ok ?? false;
+  };
+  assert.ok(await inherits(RUN_APP.name, APP_ROLE), "the app login must inherit from the app role");
+  assert.ok(await inherits(RUN_SYSTEM.name, SYSTEM_ROLE), "the system login must inherit from the system role");
+
+  // And the exemption must not have come along with the application login.
+  assert.equal(await inherits(RUN_APP.name, SYSTEM_ROLE), false, "the app login must not be exempt");
 });
 
 test("a host can post a gig as the restricted role", { skip }, async () => {
@@ -250,12 +336,21 @@ test("a gig cannot be inserted under someone else's name", { skip }, async () =>
 test("the system role's exemption widens rows, not operations", { skip }, async () => {
   // It may reach every row, and still may not delete one or rewrite the ledger.
   // If the exemption ever grew into a general-purpose superuser, this fails.
-  const can = async (action: string, table: string): Promise<boolean> => {
+  // Asserted for the real role, which is what a deployment connects as, and
+  // for this run's login, which holds only what it inherits -- so the same
+  // answer from both is also a check that membership widened nothing.
+  const granted = async (role: string, action: string, table: string): Promise<boolean> => {
     const rows = await owner.query<{ ok: boolean }>(
-      `SELECT has_table_privilege('desi_nexus_system', $1, $2) AS ok`,
-      [`${SCHEMA}.${table}`, action],
+      `SELECT has_table_privilege($1, $2, $3) AS ok`,
+      [role, `${SCHEMA}.${table}`, action],
     );
     return rows[0]?.ok ?? false;
+  };
+  const can = async (action: string, table: string): Promise<boolean> => {
+    const real = await granted(SYSTEM_ROLE, action, table);
+    const member = await granted(RUN_SYSTEM.name, action, table);
+    assert.equal(real, member, `${action} on ${table} differs between ${SYSTEM_ROLE} and its member`);
+    return real;
   };
   assert.equal(await can("SELECT", "escrows"), true);
   assert.equal(await can("UPDATE", "escrows"), true);
