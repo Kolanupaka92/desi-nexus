@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { taxonomy } from "@/lib/api";
 import { label } from "@/lib/format";
-import { EVENT_GROUPS, MATCH_WEIGHTS, METROS, PLANS, SPECIALITIES } from "@/content/seo";
+import { EVENT_GROUPS, MATCH_WEIGHTS, METROS, SPECIALITIES } from "@/content/seo";
 import { HOME_FAQ } from "@/content/faq";
 import { HeroSearch } from "@/components/HeroSearch";
 import { EnquiryForm } from "@/components/EnquiryForm";
@@ -10,6 +10,8 @@ import { CTASection } from "@/components/site/CTASection";
 import { Faq } from "@/components/site/Faq";
 import { Gallery } from "@/components/site/Gallery";
 import { Testimonials } from "@/components/site/Testimonials";
+import { CardVisual } from "@/components/site/CardVisual";
+import { EVENT_CATEGORIES, SPECIALISTS } from "@/content/imagery";
 import { GALLERY } from "@/content/gallery";
 import { TESTIMONIALS } from "@/content/testimonials";
 
@@ -91,13 +93,6 @@ export default async function HomePage() {
 
   const headline = ["mehndi", "sangeet", "half_saree_function", "griha_pravesham", "baraat", "garba_navratri"];
 
-  // The eight most-searched roles. The rest are one click away at /hire.
-  const FEATURED = [
-    "makeup-artist", "photographer", "henna-artist", "pandit",
-    "decorator", "dj", "videographer", "caterer",
-  ];
-  const featured = FEATURED.flatMap((slug) => SPECIALITIES.filter((s) => s.slug === slug));
-
   // Every occasion, grouped order preserved, as [code, label] for the search.
   const occasionOptions = Object.values(groups)
     .flat()
@@ -157,20 +152,28 @@ export default async function HomePage() {
           />
 
           <div className="planner">
-            {PLANS.map((plan, index) => {
-              const events = groups[plan.slug] ?? EVENT_GROUPS[plan.slug] ?? [];
+            {EVENT_CATEGORIES.map((card, index) => {
+              const events = groups[card.key] ?? EVENT_GROUPS[card.key] ?? [];
               return (
-                <Link key={plan.slug} href={`/plan/${plan.slug}`} className="plan-card">
+                <Link key={card.key} href={card.href} className="plan-card">
                   {/*
-                    The slot real event photography drops into, sized so that
-                    dropping a photo in changes nothing about the card's
-                    geometry. Tinted per group so five of them read as five
-                    things rather than five copies of one placeholder.
+                    The picture. A photograph once content/imagery.ts has one
+                    for this card, the drawing until then -- both in the same
+                    box, so supplying photography changes the picture and
+                    nothing about the layout.
+
+                    `sizes` matches the grid below: one card across a phone,
+                    two on a tablet, and three across on a desktop where the
+                    shell is capped at 1120px.
                   */}
-                  <div className={`plan-shot tint-${index}`} aria-hidden="true" />
+                  <CardVisual
+                    card={card}
+                    className={`plan-shot tint-${index}`}
+                    sizes="(min-width: 1000px) 360px, (min-width: 640px) 50vw, 100vw"
+                  />
                   <div className="plan-body">
-                    <h3>{plan.short}</h3>
-                    <p>{plan.card}</p>
+                    <h3>{card.title}</h3>
+                    <p>{card.description}</p>
                     <ul className="plan-list">
                       {events.slice(0, PREVIEW).map((event) => (
                         <li key={event}>{label(event)}</li>
@@ -219,18 +222,16 @@ export default async function HomePage() {
             handful and links to the rest.
           */}
           <div className="crew">
-            {featured.map((speciality, index) => (
-              <Link
-                key={speciality.slug}
-                href={`/hire/dallas-fort-worth/${speciality.slug}`}
-                className="crew-card"
-              >
-                {/* The slot real portfolio work drops into. Tinted per card so a
-                    row of them reads as a set rather than as eight copies. */}
-                <div className={`crew-shot tint-${index % 8}`} aria-hidden="true" />
+            {SPECIALISTS.map((card, index) => (
+              <Link key={card.key} href={card.href} className="crew-card">
+                <CardVisual
+                  card={card}
+                  className={`crew-shot tint-${index % 8}`}
+                  sizes="(min-width: 980px) 260px, (min-width: 700px) 33vw, 50vw"
+                />
                 <div className="crew-body">
-                  <strong style={{ textTransform: "capitalize" }}>{speciality.noun}</strong>
-                  <small>{speciality.events.slice(0, 2).map(label).join(" · ")}</small>
+                  <strong>{card.title}</strong>
+                  <small>{card.description}</small>
                 </div>
               </Link>
             ))}

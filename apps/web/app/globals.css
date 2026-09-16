@@ -925,15 +925,6 @@ h2 > a, h3 > a, td > a {
 .crew-shot.tint-5 { background: linear-gradient(150deg, #e7bcae, #c3d3ab); }
 .crew-shot.tint-6 { background: linear-gradient(150deg, #dcc8a9, #b2c7dd); }
 .crew-shot.tint-7 { background: linear-gradient(150deg, #e4b3c6, #ccd0a3); }
-.crew-shot::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 120 120'%3E%3Cg fill='none' stroke='%237a1f3d' stroke-width='1' stroke-opacity='0.24'%3E%3Ccircle cx='60' cy='60' r='30'/%3E%3Ccircle cx='60' cy='60' r='44'/%3E%3Cpath d='M60 12v96M12 60h96M26 26l68 68M94 26l-68 68'/%3E%3C/g%3E%3C/svg%3E");
-  background-size: 70%;
-  background-position: center;
-  background-repeat: no-repeat;
-}
 .crew-body { padding: 14px 16px 16px; }
 .crew-body strong { display: block; font-size: 1rem; }
 .crew-body small { display: block; margin-top: 4px; color: var(--ink-faint); font-size: 0.82rem; line-height: 1.5; }
@@ -1064,24 +1055,24 @@ main:focus { outline: none; }
 .plan-shot {
   display: block;
   position: relative;
-  aspect-ratio: 16 / 9;
+  /*
+   * Taller on a phone than on a desktop, deliberately.
+   *
+   * A single-column card at 390px is about 350px wide; at 16:9 that is a
+   * 197px strip, which reads as a thumbnail stuck to the top of a text block.
+   * 4:3 gives it 260px and makes the picture the thing you see first, which is
+   * the point of having one. The ratio tightens as the grid gets more columns
+   * and each card gets narrower.
+   */
+  aspect-ratio: 4 / 3;
   background: linear-gradient(150deg, var(--marigold-soft), var(--maroon-soft));
 }
+@media (min-width: 640px) { .plan-shot { aspect-ratio: 16 / 10; } }
 .plan-shot.tint-0 { background: linear-gradient(150deg, #f3cfa6, #dfa0b6); }
 .plan-shot.tint-1 { background: linear-gradient(150deg, #e8cfa8, #c9b7e0); }
 .plan-shot.tint-2 { background: linear-gradient(150deg, #c9d8c0, #e7c6a8); }
 .plan-shot.tint-3 { background: linear-gradient(150deg, #f0c69c, #d9b0c4); }
 .plan-shot.tint-4 { background: linear-gradient(150deg, #bccfdd, #e2c8ae); }
-.plan-shot::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 120 120'%3E%3Cg fill='none' stroke='%237a1f3d' stroke-width='1' stroke-opacity='0.26'%3E%3Ccircle cx='60' cy='60' r='30'/%3E%3Ccircle cx='60' cy='60' r='44'/%3E%3Cpath d='M60 12v96M12 60h96M26 26l68 68M94 26l-68 68'/%3E%3C/g%3E%3C/svg%3E");
-  background-size: 46%;
-  background-position: center;
-  background-repeat: no-repeat;
-}
-
 .plan-body {
   display: flex;
   flex-direction: column;
@@ -1407,3 +1398,124 @@ main:focus { outline: none; }
 }
 .quotes figcaption strong { display: block; color: var(--ink); }
 .quotes figcaption span { color: var(--ink-faint); }
+
+
+/* --- Motifs ---------------------------------------------------------------
+ *
+ * The drawn artwork in every image slot. Two tokens rather than hard-coded
+ * colours, so a card sets the pair once and the piece inside it follows --
+ * which is what lets the same thirteen drawings sit on a light tint here and
+ * on a dark band elsewhere without a second set being drawn.
+ */
+.motif {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  --motif-ink: rgba(106, 26, 53, 0.82);
+  --motif-accent: rgba(210, 122, 28, 0.95);
+  /*
+   * No padding. The drawings already carry their own margin inside the
+   * viewBox, and `meet` letterboxes a 4:3 drawing inside a 16:9 slot on top of
+   * that -- the two compounded left each piece floating in the middle of a
+   * mostly empty tint, which reads as a picture that failed to load rather
+   * than as artwork.
+   */
+  padding: 0;
+  box-sizing: border-box;
+  /* The art is decoration and the caption is the content; if the two ever
+     overlap, the caption wins. */
+  pointer-events: none;
+}
+
+/* Slightly deeper ink on the wider plan cards, where the drawing is larger and
+   a light line reads as unfinished. */
+.plan-shot .motif { --motif-ink: rgba(88, 18, 42, 0.85); }
+
+/* The craft drawings are simpler, so they take a little more air. */
+.crew-shot .motif { padding: 6%; }
+
+/* --- Plan page ------------------------------------------------------------ */
+
+.plan-hero {
+  display: grid;
+  gap: var(--space-5);
+  align-items: center;
+  padding: var(--space-6) 0 var(--space-2);
+}
+@media (min-width: 860px) {
+  .plan-hero { grid-template-columns: 1.35fr 1fr; gap: var(--space-7); }
+}
+.plan-hero-art {
+  position: relative;
+  aspect-ratio: 4 / 3;
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  /* Ordered after the copy on a phone, beside it on a desktop -- and small
+     enough on a phone that it never pushes the h1 off the first screen. */
+  max-height: 260px;
+}
+.plan-hero-art .motif { --motif-ink: rgba(88, 18, 42, 0.85); padding: 6%; }
+
+/*
+ * One tile per function, drawn rather than listed.
+ *
+ * Two columns on a phone rather than one: these are recognised at a glance and
+ * a single column would make a ten-function group a page of scrolling.
+ */
+.occasion-grid {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: var(--space-3);
+  grid-template-columns: repeat(2, 1fr);
+}
+@media (min-width: 620px) { .occasion-grid { grid-template-columns: repeat(3, 1fr); } }
+@media (min-width: 900px) { .occasion-grid { grid-template-columns: repeat(5, 1fr); } }
+
+.occasion-tile {
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  background: var(--card);
+}
+.occasion-tile .motif {
+  position: relative;
+  display: block;
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  padding: 10%;
+  --motif-ink: rgba(106, 26, 53, 0.8);
+  --motif-accent: rgba(210, 122, 28, 0.95);
+}
+.occasion-tile span {
+  display: block;
+  padding: var(--space-3) var(--space-3) var(--space-4);
+  border-top: 1px solid var(--line);
+  font-size: 0.83rem;
+  font-weight: 560;
+  line-height: 1.35;
+  text-wrap: balance;
+}
+
+/* --- Card visuals ---------------------------------------------------------
+ *
+ * The picture area of a card, whether it currently holds a photograph or a
+ * drawing. The two occupy exactly the same box, so supplying photography later
+ * changes the picture and nothing about the layout.
+ */
+.card-visual {
+  position: relative;
+  overflow: hidden;
+  /* A tinted ground behind the image. If a photograph 404s or is slow, what
+     shows through is the brand colour at the right size rather than a broken
+     icon or a collapsed box. */
+  background: linear-gradient(150deg, var(--marigold-soft), var(--maroon-soft));
+}
+.card-photo {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}

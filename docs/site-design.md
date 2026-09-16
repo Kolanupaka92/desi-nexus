@@ -58,7 +58,28 @@ The repository has no image assets. Not "a few placeholders" — none: no
 `<img>`, no object storage configured in `.env.example`, and no endpoint that
 can create a `portfolio_assets` row.
 
-Two sections are **built and switched off**, rather than omitted:
+### Card photography
+
+Every card on the home page reads its picture from `apps/web/content/imagery.ts`
+— `title`, `description`, `href`, `image`, `imageAlt`, focal point, credit and
+licence. No component holds an image path, so supplying a photograph is a data
+change and a card can switch from its drawing to a photograph without anybody
+opening a `.tsx` file.
+
+`image` is undefined on every entry today because **the photographs could not
+be fetched from this environment**: the egress proxy answers `403` to `CONNECT`
+for every image host — Unsplash, Pexels, Wikimedia Commons. Each entry
+therefore carries the exact per-card search query for its picture instead, and
+`apps/web/public/images/README.md` is the drop-in procedure: filename, query,
+size, focal point, licence.
+
+Until a card has a photograph it renders a hand-drawn motif
+(`components/site/Motif.tsx`, thirteen original line drawings). Those are a
+fallback, not the design, and should not survive contact with real photography.
+Both render into the same box, verified at 375/390/430/768/1280/1440px, so
+photographs can arrive a few at a time without the page moving.
+
+Two further sections are **built and switched off**, rather than omitted:
 
 | Section | Turned on by | Renders when empty |
 | --- | --- | --- |

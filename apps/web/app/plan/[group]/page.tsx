@@ -5,6 +5,7 @@ import { EVENT_GROUPS, METROS, PLANS, SPECIALITIES, planBySlug } from "@/content
 import { label } from "@/lib/format";
 import { Breadcrumbs } from "@/components/site/Breadcrumbs";
 import { CTASection } from "@/components/site/CTASection";
+import { Motif, motifFor, type MotifName } from "@/components/site/Motif";
 
 /**
  * One page per occasion group: what this kind of function needs, and who works
@@ -64,10 +65,15 @@ export default async function PlanPage({ params }: Params) {
     <>
       <Breadcrumbs base={SITE} crumbs={[{ label: "Plan", href: "/#plan" }, { label: plan.title }]} />
 
-      <section style={{ padding: "36px 0 8px", maxWidth: 760 }}>
-        <span className="pill">Texas · {events.length} functions</span>
-        <h1 style={{ marginTop: 16 }}>{plan.title}</h1>
-        <p className="lede">{plan.lede}</p>
+      <section className="plan-hero">
+        <div>
+          <span className="pill">Texas · {events.length} functions</span>
+          <h1 style={{ marginTop: "var(--space-4)" }}>{plan.title}</h1>
+          <p className="lede">{plan.lede}</p>
+        </div>
+        <div className={`plan-hero-art tint-${PLANS.findIndex((p) => p.slug === plan.slug)}`}>
+          <Motif name={plan.slug as MotifName} />
+        </div>
       </section>
 
       <div className="card" style={{ marginTop: 22 }}>
@@ -75,12 +81,20 @@ export default async function PlanPage({ params }: Params) {
         <p style={{ margin: 0, maxWidth: "var(--measure)" }}>{plan.brief}</p>
       </div>
 
-      <section style={{ marginTop: 28 }}>
+      <section style={{ marginTop: 32 }}>
         <h2>The functions in this group</h2>
-        <ul className="tags" style={{ marginTop: 12 }}>
-          {events.map((event) => (
-            <li key={event} className="pill tag">
-              {label(event)}
+        {/*
+          Drawn, not listed. These were text pills, which told a visitor the
+          names of functions they mostly already know and showed them nothing.
+          The ones with their own visual language get their own drawing; the
+          rest fall back to this group's, which is honest -- a Namakaranam and
+          a Seemantham really are staged around the same thing.
+        */}
+        <ul className="occasion-grid" style={{ marginTop: "var(--space-4)" }}>
+          {events.map((event, index) => (
+            <li key={event} className={`occasion-tile tint-${index % 8}`}>
+              <Motif name={motifFor(event, plan.slug)} />
+              <span>{label(event)}</span>
             </li>
           ))}
         </ul>
