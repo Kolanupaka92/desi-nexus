@@ -182,7 +182,9 @@ export class OutboxRelay {
         this.running = false;
       }
     };
-    this.timer = setInterval(tick, interval);
+    // tick handles its own failures; the void marks the promise as
+    // deliberately not awaited, which setInterval could not do anyway.
+    this.timer = setInterval(() => void tick(), interval);
     // Never hold the process open on the relay's account.
     this.timer.unref?.();
   }

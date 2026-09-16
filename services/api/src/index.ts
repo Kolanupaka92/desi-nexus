@@ -48,7 +48,7 @@ for (const signal of ["SIGTERM", "SIGINT"] as const) {
   process.on(signal, () => {
     // Stop accepting connections, then release what this process opened.
     server.close(() => {
-      shutdownDeps().finally(() => process.exit(0));
+      void shutdownDeps().finally(() => process.exit(0));
     });
   });
 }

@@ -268,10 +268,28 @@ export function buildRouter(deps: AppDeps): Router {
 
 /** Turn a node:http request into a RequestContext and dispatch it. */
 export function createRequestListener(router: Router) {
-  return async (req: IncomingMessage, res: ServerResponse): Promise<void> => {
+  // node:http never awaits this listener, so a rejection escapes as an
+  // unhandled rejection -- which ends the process by default. A client that
+  // disconnects mid-body is enough to reach it, so the whole handler is
+  // wrapped: one malformed request must not take the service down.
+  return (req: IncomingMessage, res: ServerResponse): void => {
+    void handleRequest(router, req, res).catch((error: unknown) => {
+      const traceId = `trc_${randomUUID().slice(0, 12)}`;
+      console.error("unhandled error in request listener", error);
+      if (!res.headersSent) {
+        send(res, { status: 500, body: { error: { code: "internal", message: "internal error" } } }, traceId);
+      } else {
+        res.end();
+      }
+    });
+  };
+}
+
+async function handleRequest(router: Router, req: IncomingMessage, res: ServerResponse): Promise<void> {
+  {
     const traceId = `trc_${randomUUID().slice(0, 12)}`;
     const url = new URL(req.url ?? "/", "http://localhost");
-    let rawBody = "";
+    let rawBody: string;
     try {
       rawBody = await readBody(req);
     } catch (error) {

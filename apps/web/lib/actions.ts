@@ -38,7 +38,20 @@ function explain(error: unknown): FormState {
   return { error: "Something went wrong. Please try again." };
 }
 
-const str = (form: FormData, key: string): string => String(form.get(key) ?? "").trim();
+/**
+ * A text field from a submitted form.
+ *
+ * FormData.get returns `string | File | null`, and String() over that union
+ * turns an uploaded file into the literal text "[object File]" -- which would
+ * then be saved as the vendor's business name or sent on as an address to
+ * geocode. No form here has a file input yet; portfolio upload adds the first,
+ * so this narrows rather than stringifies, and a file submitted where text was
+ * expected reads as empty.
+ */
+const str = (form: FormData, key: string): string => {
+  const value = form.get(key);
+  return typeof value === "string" ? value.trim() : "";
+};
 const cents = (form: FormData, key: string): number => {
   const dollars = Number(str(form, key));
   return Number.isFinite(dollars) ? Math.round(dollars * 100) : 0;
