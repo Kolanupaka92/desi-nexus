@@ -169,3 +169,49 @@ export const gig = (id: string) =>
 
 export const applicants = (id: string) =>
   apiFetch<{ applications: ApplicantRow[] }>(`/v1/gigs/${id}/applications`);
+
+/**
+ * A vendor's published profile, read without a session.
+ *
+ * Mirrors the API's `PublicVendorProfile` projection exactly. That projection
+ * is built by naming the fields that may be public rather than by deleting the
+ * ones that may not, which is why this interface can be a straight copy: a
+ * field added to the stored profile does not appear here, or on the page,
+ * until somebody adds it in both places on purpose.
+ *
+ * `ratingAvg` is optional and absent on every profile today, because no
+ * reviews exist yet. The page renders nothing where a rating would go rather
+ * than a placeholder score.
+ */
+export interface PublicVendorProfile {
+  readonly slug: string;
+  readonly businessName: string;
+  readonly headline: string;
+  readonly about: string;
+  readonly displayName: string;
+  readonly specialties: string[];
+  readonly culturalTags: string[];
+  readonly languages: string[];
+  readonly metroId?: string;
+  readonly startingRateCents: number;
+  readonly yearsExperience: number;
+  readonly travelRadiusMiles?: number;
+  readonly profileAssetId?: string;
+  readonly portfolioAssetIds: string[];
+  readonly publishedAt: string;
+  readonly ratingAvg?: number;
+  readonly ratingCount: number;
+  readonly completedGigs: number;
+}
+
+/**
+ * Cached for five minutes rather than not at all. This is an anonymous,
+ * crawlable page whose content changes when a vendor edits it, so a short
+ * shared cache is right: it absorbs the traffic a shared WhatsApp link
+ * produces without making an edit take an hour to appear.
+ */
+export const vendorProfile = (slug: string) =>
+  apiFetch<{ vendor: PublicVendorProfile }>(`/v1/vendors/${encodeURIComponent(slug)}`, {
+    authenticated: false,
+    revalidate: 300,
+  });

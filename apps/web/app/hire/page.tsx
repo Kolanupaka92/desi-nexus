@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { METROS, SPECIALITIES } from "@/content/seo";
+import { METROS, PLANS, SPECIALITIES } from "@/content/seo";
+import { CTASection } from "@/components/site/CTASection";
 
 export const dynamic = "force-static";
 
@@ -16,7 +17,7 @@ export default function HireIndexPage() {
     <>
       <section style={{ padding: "40px 0 8px", maxWidth: 760 }}>
         <span className="pill">Texas pilot</span>
-        <h1 style={{ marginTop: 16, fontSize: "2.5rem" }}>Hire crew who know the function</h1>
+        <h1 style={{ marginTop: "var(--space-4)" }}>Hire crew who know the function</h1>
         <p className="lede">
           Eight metros, seventeen specialities, and a match engine that ranks cultural fit above
           everything else &mdash; because a MUA who does South Indian bridal is not
@@ -25,7 +26,7 @@ export default function HireIndexPage() {
       </section>
 
       <section style={{ marginTop: 20 }}>
-        <h3>By metro</h3>
+        <h2>By metro</h2>
         <div className="grid two" style={{ marginTop: 12 }}>
           {METROS.map((metro) => (
             <Link key={metro.slug} href={`/hire/${metro.slug}`} className="card link-card">
@@ -40,7 +41,23 @@ export default function HireIndexPage() {
       </section>
 
       <section style={{ marginTop: 28 }}>
-        <h3>By speciality</h3>
+        <h2>By occasion</h2>
+        <p className="faint" style={{ marginTop: 6 }}>
+          What a function needs is a better starting point than what a role is called.
+        </p>
+        <ul className="tags" style={{ marginTop: 10 }}>
+          {PLANS.map((plan) => (
+            <li key={plan.slug}>
+              <Link className="pill" href={`/plan/${plan.slug}`}>
+                {plan.short}
+              </Link>
+            </li>
+          ))}
+        </ul>
+      </section>
+
+      <section style={{ marginTop: 28 }}>
+        <h2>By speciality</h2>
         <ul className="tags" style={{ marginTop: 10 }}>
           {SPECIALITIES.map((speciality) => (
             <li key={speciality.slug}>
@@ -54,6 +71,16 @@ export default function HireIndexPage() {
           Links open the Dallas-Fort Worth page; every speciality is available in all eight metros.
         </p>
       </section>
+
+      <div style={{ marginTop: 44 }}>
+        <CTASection
+          eyebrow="Or skip the browsing"
+          title="Describe the function and let the matching do the shortlist."
+          body="A brief names the occasion, the look you want and the languages you need on the day. Every applicant arrives with a score and the breakdown that produced it, and the deposit stays in escrow until the work is delivered."
+          primary={{ href: "/gigs/new", label: "Post a brief" }}
+          secondary={{ href: "/for-vendors", label: "I am a vendor" }}
+        />
+      </div>
     </>
   );
 }

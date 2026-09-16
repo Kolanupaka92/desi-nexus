@@ -1,8 +1,12 @@
 import Link from "next/link";
 import { taxonomy } from "@/lib/api";
 import { label } from "@/lib/format";
-import { EVENT_GROUPS, MATCH_WEIGHTS, METROS, SPECIALITIES } from "@/content/seo";
+import { EVENT_GROUPS, MATCH_WEIGHTS, METROS, PLANS, SPECIALITIES } from "@/content/seo";
+import { HOME_FAQ } from "@/content/faq";
 import { HeroSearch } from "@/components/HeroSearch";
+import { SectionHeader } from "@/components/site/SectionHeader";
+import { CTASection } from "@/components/site/CTASection";
+import { Faq } from "@/components/site/Faq";
 
 /**
  * The front door.
@@ -16,11 +20,19 @@ import { HeroSearch } from "@/components/HeroSearch";
  * category actually lives in. The working surfaces -- gig briefs, the vendor
  * feed -- stay on paper, where long forms belong.
  *
- * There is deliberately no photography here yet and no invented social proof.
- * Stock images of models would be a claim about who is on the platform that is
- * not true, and it is also exactly the generic look this is trying to escape.
- * The layout is built around image slots for when real vendor work exists; the
- * ornament is drawn, not photographed, in the meantime.
+ * The page is ordered by what a visitor is deciding, not by what we want to
+ * say. What are you planning; who works it; how does the money work; why this
+ * vendor and not that one; the questions everyone asks; and then one action.
+ *
+ * Two things are deliberately missing, and will stay missing until they can be
+ * true. There is no photography: stock images of models would be a claim about
+ * who is on the platform that is not, and it is also exactly the generic look
+ * this is trying to escape. The layout is built around image slots for the day
+ * real vendor work exists, and the ornament is drawn rather than photographed
+ * in the meantime. And there are no testimonials, review counts, star ratings
+ * or "events delivered" figures, because there is no honest source for any of
+ * them yet -- a marketplace's first job is to be worth trusting, and inventing
+ * the evidence of trustworthiness is the fastest way to forfeit it.
  */
 export const revalidate = 3600;
 
@@ -30,7 +42,7 @@ const STEPS = [
     body: "A Sangeet is not a reception and a Griha Pravesham is not a birthday. Pick the real occasion, the look you want, and the languages you need on the day.",
   },
   {
-    title: "Get matched in under an hour",
+    title: "Get matched on the functions they have worked",
     body: "We rank local crew on cultural fit first, then distance, budget, language and track record — and show you exactly why each one ranked where they did.",
   },
   {
@@ -60,14 +72,6 @@ const PROMISES = [
 
 /** The first few occasions of each group, as a taste rather than a dump. */
 const PREVIEW = 4;
-
-const GROUP_BLURB: Record<string, string> = {
-  wedding: "Multi-day, multi-family, never one event.",
-  religious: "The tradition sets the sequence, not the planner.",
-  milestone: "Only make sense inside the family.",
-  festival: "Community-scale nights.",
-  commercial: "Same supply, different demand.",
-};
 
 export default async function HomePage() {
   // The live taxonomy when the API answers, so a newly seeded occasion shows up
@@ -114,12 +118,14 @@ export default async function HomePage() {
           */}
           <HeroSearch occasions={occasionOptions} />
 
+          {/*
+            One secondary link, not three. The hero used to offer the search
+            plus two equally weighted buttons, which is the usual way a page
+            ends up with no primary action at all.
+          */}
           <div className="hero-actions">
             <Link href="/for-vendors" className="btn ghost">
               I am a vendor — get booked
-            </Link>
-            <Link href="/gigs/new" className="btn ghost">
-              Post a brief instead
             </Link>
           </div>
           <div className="hero-ticker">
@@ -130,50 +136,52 @@ export default async function HomePage() {
         </div>
       </section>
 
-      <section className="bleed band paper">
+      <section className="bleed band paper reveal" id="plan" aria-labelledby="plan-h">
         <div className="shell">
-          <div className="band-head">
-            <span className="eyebrow" style={{ color: "var(--maroon)" }}>
-              Every occasion, named properly
-            </span>
-            <h2>Not &ldquo;wedding&rdquo;. Not &ldquo;party&rdquo;.</h2>
-            <p className="muted">
-              Vendors here tag themselves by the functions they have actually worked. That is the
-              whole difference between a shortlist worth reading and a directory.
-            </p>
-          </div>
+          <SectionHeader
+            tone="paper"
+            eyebrow="Start here"
+            id="plan-h"
+            title="What are you planning?"
+            lede="Five kinds of function, and the crew for one is not the crew for the next. Pick the one you are in and the page tells you who you will need."
+          />
 
-          <div className="occasions">
-            {Object.entries(groups).map(([group, events]) => (
-              <Link key={group} href="/hire" className={`occasion ${group}`}>
-                <h3>{label(group)}</h3>
-                {/*
-                  A subtitle on every card, in sentence case. It used to be a
-                  fallback rendered through the ".more" count style, so a group
-                  with no overflow -- Festival has exactly PREVIEW occasions --
-                  printed a whole sentence in uppercase letter-spaced small caps.
-                */}
-                <p className="occasion-blurb">{GROUP_BLURB[group] ?? ""}</p>
-                <ul>
-                  {events.slice(0, PREVIEW).map((event) => (
-                    <li key={event}>{label(event)}</li>
-                  ))}
-                </ul>
-                {events.length > PREVIEW && (
-                  <span className="more">+{events.length - PREVIEW} more</span>
-                )}
-              </Link>
-            ))}
+          <div className="planner">
+            {PLANS.map((plan, index) => {
+              const events = groups[plan.slug] ?? EVENT_GROUPS[plan.slug] ?? [];
+              return (
+                <Link key={plan.slug} href={`/plan/${plan.slug}`} className="plan-card">
+                  {/*
+                    The slot real event photography drops into, sized so that
+                    dropping a photo in changes nothing about the card's
+                    geometry. Tinted per group so five of them read as five
+                    things rather than five copies of one placeholder.
+                  */}
+                  <div className={`plan-shot tint-${index}`} aria-hidden="true" />
+                  <div className="plan-body">
+                    <h3>{plan.short}</h3>
+                    <p>{plan.card}</p>
+                    <ul className="plan-list">
+                      {events.slice(0, PREVIEW).map((event) => (
+                        <li key={event}>{label(event)}</li>
+                      ))}
+                      {events.length > PREVIEW && <li>+{events.length - PREVIEW} more</li>}
+                    </ul>
+                  </div>
+                </Link>
+              );
+            })}
           </div>
         </div>
       </section>
 
-      <section className="bleed band dark">
+      <section className="bleed band dark reveal" id="how-it-works" aria-labelledby="how-h">
         <div className="shell">
-          <div className="band-head">
-            <span className="eyebrow">How it works</span>
-            <h2>Three steps, and the money is safe through all of them.</h2>
-          </div>
+          <SectionHeader
+            eyebrow="How it works"
+            id="how-h"
+            title="Three steps, and the money is safe through all of them."
+          />
           <div className="steps">
             {STEPS.map((step, index) => (
               <div className="step" key={step.title}>
@@ -186,14 +194,14 @@ export default async function HomePage() {
         </div>
       </section>
 
-      <section className="bleed band paper">
+      <section className="bleed band paper reveal" aria-labelledby="who-h">
         <div className="shell">
-          <div className="band-head">
-            <span className="eyebrow" style={{ color: "var(--maroon)" }}>
-              Who you can book
-            </span>
-            <h2>Every speciality judged on its own craft.</h2>
-          </div>
+          <SectionHeader
+            tone="paper"
+            eyebrow="Who you can book"
+            id="who-h"
+            title="Every speciality judged on its own craft."
+          />
           {/*
             Eight, not seventeen. A full taxonomy on the front door is a wall,
             and seventeen identical placeholder tiles read as a loading state
@@ -217,16 +225,14 @@ export default async function HomePage() {
               </Link>
             ))}
           </div>
-          <p style={{ marginTop: 18 }}>
+          <p style={{ marginTop: "var(--space-5)" }}>
             <Link href="/hire" className="btn secondary">
               See all {SPECIALITIES.length} specialities
             </Link>
           </p>
 
-          <div className="band-head" style={{ marginTop: 44, marginBottom: 0 }}>
-            <span className="eyebrow" style={{ color: "var(--maroon)" }}>
-              Where
-            </span>
+          <div className="band-head" style={{ marginTop: "var(--space-7)", marginBottom: 0 }}>
+            <span className="eyebrow on-paper">Where</span>
             <div className="metro-strip">
               {METROS.map((metro) => (
                 <Link key={metro.slug} href={`/hire/${metro.slug}`}>
@@ -238,18 +244,14 @@ export default async function HomePage() {
         </div>
       </section>
 
-      <section className="bleed band dark">
+      <section className="bleed band dark reveal" aria-labelledby="rank-h">
         <div className="shell">
-          <div className="band-head">
-            <span className="eyebrow">Why this artist, and not that one</span>
-            <h2>The ranking is published, not a black box.</h2>
-            <p>
-              Every other marketplace hands you a list. None of them will tell you why the
-              person at the top is at the top. These are the exact weights the match engine
-              uses &mdash; and placement is not for sale, which is a claim anyone can make and
-              this is the receipt.
-            </p>
-          </div>
+          <SectionHeader
+            eyebrow="Why this artist, and not that one"
+            id="rank-h"
+            title="The ranking is published, not a black box."
+            lede="Every other marketplace hands you a list. None of them will tell you why the person at the top is at the top. These are the exact weights the match engine uses — and placement is not for sale, which is a claim anyone can make and this is the receipt."
+          />
           <div className="weights">
             {MATCH_WEIGHTS.map((factor) => (
               <div className="weight" key={factor.key}>
@@ -267,17 +269,18 @@ export default async function HomePage() {
         </div>
       </section>
 
-      <section className="bleed band darker">
+      <section className="bleed band darker reveal" aria-labelledby="money-h">
         <div className="shell promise">
           <div>
             <span className="eyebrow">The part nobody enjoys</span>
             <h2
+              id="money-h"
               style={{
                 fontFamily: "var(--serif)",
-                fontSize: "clamp(1.7rem, 3.4vw, 2.3rem)",
+                fontSize: "var(--step-3)",
                 color: "#fffaf2",
                 letterSpacing: "-0.02em",
-                margin: "12px 0 10px",
+                margin: "var(--space-3) 0 var(--space-3)",
               }}
             >
               Money, handled so you do not have to trust anyone.
@@ -286,9 +289,6 @@ export default async function HomePage() {
               A deposit funds an escrow before the date is held. The vendor knows they will be
               paid; you know the work happens first. Neither side is chasing the other.
             </p>
-            <Link href="/gigs/new" className="btn gold" style={{ marginTop: 8 }}>
-              Post a gig
-            </Link>
           </div>
           <ul className="promise-list">
             {PROMISES.map((promise) => (
@@ -298,6 +298,30 @@ export default async function HomePage() {
               </li>
             ))}
           </ul>
+        </div>
+      </section>
+
+      <section className="bleed band paper reveal" id="faq" aria-labelledby="faq-h">
+        <div className="shell narrow">
+          <SectionHeader
+            tone="paper"
+            eyebrow="Before you pay anyone"
+            id="faq-h"
+            title="The questions everybody asks."
+          />
+          <Faq items={HOME_FAQ} />
+        </div>
+      </section>
+
+      <section className="bleed band paper" style={{ paddingTop: 0 }}>
+        <div className="shell">
+          <CTASection
+            eyebrow="One action"
+            title="Name the function. We will find the people who have worked it."
+            body="A brief takes a few minutes. Matching runs on the occasion, not the category, and the deposit stays in escrow until the work is delivered."
+            primary={{ href: "/gigs/new", label: "Post a brief" }}
+            secondary={{ href: "/hire", label: "Browse vendors first" }}
+          />
         </div>
       </section>
     </>

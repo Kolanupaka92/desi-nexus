@@ -360,3 +360,82 @@ export const MATCH_WEIGHTS: ReadonlyArray<{
     why: "How quickly they answer. Small, because a slow reply from the right artist still beats a fast one from the wrong one.",
   },
 ];
+
+/**
+ * The five occasion groups, written up as pages.
+ *
+ * `EVENT_GROUPS` above is the taxonomy -- codes and grouping, shared with the
+ * service. This is the editorial layer on top of it: what a visitor planning
+ * this kind of function is actually deciding, and why the crew list for it is
+ * not the crew list for the next one.
+ *
+ * Five pages, not five hundred. The temptation with a taxonomy this size is to
+ * cross it with the eight metros and generate forty near-identical pages, and
+ * every one of them would be thin: the thing that differs between a Sangeet in
+ * Plano and a Sangeet in Katy is the travel quote, which is a number on the
+ * vendor's page, not an article. What genuinely differs -- what a wedding needs
+ * versus what a Griha Pravesham needs -- is these five.
+ *
+ * Nothing here is a claim about the business. No counts of events served, no
+ * vendor numbers, no testimonials: the copy describes the occasions, which are
+ * facts about the culture rather than assertions about us.
+ */
+export interface Plan {
+  readonly slug: string;
+  /** The h1, and the page title's subject. */
+  readonly title: string;
+  /** The two-word version, used on the home page card and in breadcrumbs. */
+  readonly short: string;
+  /** One paragraph under the h1. */
+  readonly lede: string;
+  /** What makes booking for this kind of function different. */
+  readonly brief: string;
+  /** The short line that appears on the home page card. */
+  readonly card: string;
+}
+
+export const PLANS: readonly Plan[] = [
+  {
+    slug: "wedding",
+    title: "Planning a wedding",
+    short: "Weddings",
+    card: "Multi-day, multi-family, never one event.",
+    lede: "A South Asian wedding is not an event, it is a week. Mehndi, Haldi and Sangeet each want a different look, a different room and often a different crew, and the reception wants all of it done again by people who have not slept.",
+    brief: "The mistake that costs the most is booking one vendor for the whole week without checking they have worked each function. A photographer who shoots receptions beautifully may never have covered a Baraat, which happens outdoors, in motion, in daylight that changes by the minute. Every vendor here tags the specific functions they have worked, so a shortlist for a four-day wedding can be read function by function rather than hoped at.",
+  },
+  {
+    slug: "religious",
+    title: "Planning a puja or ceremony",
+    short: "Pujas & ceremonies",
+    card: "The tradition sets the sequence, not the planner.",
+    lede: "A Griha Pravesham, a Satyanarayan Puja, an Upanayanam or a Namakaranam runs to a sequence the family does not set. The vendor's job is to fit around it without ever being the reason something waits.",
+    brief: "This is the category where language and tradition are not preferences. A pandit who performs in the family's tradition and speaks the language the elders are following in is the difference between a ceremony and a recital nobody can follow. Profiles here carry the tradition and the languages spoken, and the match engine weights both above distance.",
+  },
+  {
+    slug: "milestone",
+    title: "Planning a family milestone",
+    short: "Family milestones",
+    card: "Only make sense inside the family.",
+    lede: "A Half-Saree Function, a Mundan, a Seemantham, a first birthday. Smaller than a wedding and, for the people in the room, not smaller at all.",
+    brief: "Generalist vendors read these as parties and price them as parties, which is how a Half-Saree Function ends up with prom makeup and a photographer who missed the ritual because nobody told them it was coming. The crew listed for these functions have worked them before and know which twenty minutes of a four-hour afternoon actually matter.",
+  },
+  {
+    slug: "festival",
+    title: "Planning a festival night",
+    short: "Festival nights",
+    card: "Community-scale nights.",
+    lede: "Garba, Diwali, Holi, a Bhangra night. Hundreds of people, one room, a sound system that has to survive nine nights and lighting that has to work for a crowd rather than a couple.",
+    brief: "The constraints here are closer to a live event than to a wedding: load-in windows, power, a DJ who owns a rig that can fill a hall rather than a booth, and a photographer who can work a moving crowd in bad light. Vendors who work these tag them, because the equipment list is different and so is the night.",
+  },
+  {
+    slug: "commercial",
+    title: "Planning a shoot or brand event",
+    short: "Shoots & brand events",
+    card: "Same supply, different demand.",
+    lede: "Boutique lookbooks, jewellery catalogues, brand campaigns, a corporate Diwali, a restaurant launch. The same artists, hired on commercial terms.",
+    brief: "The people who do bridal well are frequently the people a boutique wants, and they are hard to find because they are indexed under weddings everywhere else. Briefs here carry usage terms and deliverables alongside the date, so a shoot is not negotiated twice.",
+  },
+];
+
+export const planBySlug = (slug: string): Plan | undefined =>
+  PLANS.find((plan) => plan.slug === slug);

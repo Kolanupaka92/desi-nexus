@@ -2,9 +2,13 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { METROS, SPECIALITIES, metroBySlug } from "@/content/seo";
+import { Breadcrumbs } from "@/components/site/Breadcrumbs";
+import { CTASection } from "@/components/site/CTASection";
 
 /** The metro hub: every speciality we cover, for one place. */
 export const dynamic = "force-static";
+
+const SITE = process.env.NEXT_PUBLIC_SITE_URL ?? "https://desi-nexus.com";
 
 export function generateStaticParams() {
   return METROS.map((metro) => ({ metro: metro.slug }));
@@ -34,13 +38,14 @@ export default async function MetroPage({ params }: Params) {
 
   return (
     <>
-      <nav className="crumbs faint" aria-label="Breadcrumb">
-        <Link href="/hire">Hire</Link> › <span>{metro.name}</span>
-      </nav>
+      <Breadcrumbs
+        base={SITE}
+        crumbs={[{ label: "Hire", href: "/hire" }, { label: metro.name }]}
+      />
 
       <section style={{ padding: "36px 0 8px", maxWidth: 760 }}>
         <span className="pill">{metro.name}</span>
-        <h1 style={{ marginTop: 16, fontSize: "2.4rem" }}>
+        <h1 style={{ marginTop: "var(--space-4)" }}>
           South Asian event vendors in {metro.name}
         </h1>
         <p className="lede">{metro.blurb}</p>
@@ -65,16 +70,14 @@ export default async function MetroPage({ params }: Params) {
         </div>
       </section>
 
-      <div className="card accent-card" style={{ marginTop: 24 }}>
-        <h3 style={{ marginTop: 0 }}>Not sure who you need?</h3>
-        <p>
-          Post the occasion instead. Tell us it is a Half-Saree Function rather than &ldquo;a
-          party&rdquo; and we suggest the crew that function actually needs, then rank them on
-          cultural fit, distance, budget and language.
-        </p>
-        <Link href="/gigs/new" className="btn accent">
-          Post a gig
-        </Link>
+      <div style={{ marginTop: 36 }}>
+        <CTASection
+          eyebrow="Not sure who you need?"
+          title="Post the occasion instead."
+          body={`Tell us it is a Half-Saree Function rather than "a party" and we suggest the crew that function actually needs, then rank them on cultural fit, distance, budget and language.`}
+          primary={{ href: "/gigs/new", label: "Post a brief" }}
+          secondary={{ href: "/hire", label: "Other metros" }}
+        />
       </div>
 
       <section style={{ marginTop: 28 }}>

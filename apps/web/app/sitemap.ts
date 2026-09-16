@@ -1,5 +1,5 @@
 import type { MetadataRoute } from "next";
-import { METROS, SPECIALITIES } from "@/content/seo";
+import { METROS, PLANS, SPECIALITIES } from "@/content/seo";
 
 /**
  * Every indexable URL, generated from the same content the pages are.
@@ -19,6 +19,26 @@ export default function sitemap(): MetadataRoute.Sitemap {
     { url: `${BASE}/for-vendors`, lastModified: now, changeFrequency: "monthly", priority: 0.8 },
   ];
 
+  /*
+   * The occasion-group pages. Five, not forty: these are not crossed with the
+   * metros, because the only thing that would differ between "Weddings in
+   * Dallas" and "Weddings in Houston" is a place name, and a set of pages that
+   * differ by a place name is a doorway set whatever it is called.
+   *
+   * Vendor profiles are deliberately absent. They are published one at a time
+   * by the vendors themselves and read from the API at request time, so listing
+   * them here would mean either a build-time query that makes the sitemap
+   * fail when the API is down, or a stale list that 404s the moment somebody
+   * unpublishes. They are reachable from the pages that link to them, which is
+   * what the sitemap is a hint about rather than a substitute for.
+   */
+  const plans: MetadataRoute.Sitemap = PLANS.map((plan) => ({
+    url: `${BASE}/plan/${plan.slug}`,
+    lastModified: now,
+    changeFrequency: "monthly",
+    priority: 0.8,
+  }));
+
   const metros: MetadataRoute.Sitemap = METROS.map((metro) => ({
     url: `${BASE}/hire/${metro.slug}`,
     lastModified: now,
@@ -35,5 +55,5 @@ export default function sitemap(): MetadataRoute.Sitemap {
     })),
   );
 
-  return [...statics, ...metros, ...pages];
+  return [...statics, ...plans, ...metros, ...pages];
 }
