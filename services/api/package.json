@@ -11,12 +11,16 @@
     "build": "tsc -p tsconfig.json",
     "start": "node dist/src/index.js",
     "test": "tsc -p tsconfig.json && node --test \"dist/test/*.test.js\"",
-    "typecheck": "tsc -p tsconfig.json --noEmit"
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "lint": "eslint ."
   },
   "devDependencies": {
+    "@eslint/js": "^10.0.1",
     "@types/node": "^22.10.0",
     "@types/pg": "^8.23.1",
-    "typescript": "^5.7.0"
+    "eslint": "^10.10.0",
+    "typescript": "^5.7.0",
+    "typescript-eslint": "^8.70.0"
   },
   "dependencies": {
     "ioredis": "^6.0.0",

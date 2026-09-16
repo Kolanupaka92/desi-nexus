@@ -61,6 +61,12 @@ jobs:
       - name: Install
         run: npm install --no-audit --no-fund
 
+      - name: Lint
+        # Type-aware rules, so this is not a style check. It is what catches an
+        # unawaited promise on a money path -- a request that returns 200 while
+        # the write never happened, and nothing logged.
+        run: npm run lint
+
       - name: Typecheck and test
         # The skip check matters as much as the pass count: the database and
         # Redis tests skip themselves when their service is not configured, and
@@ -91,6 +97,12 @@ jobs:
 
       - name: Install
         run: npm install --no-audit --no-fund
+
+      - name: Lint
+        # The Next rules here are not style: an <img> that ships an
+        # unoptimised original, or an <a> to an internal route that discards
+        # client-side navigation, both land on a phone on a shared link.
+        run: npm run lint
 
       - name: Typecheck
         run: npx tsc --noEmit

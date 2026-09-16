@@ -398,3 +398,69 @@ test("the Stripe request id is kept for support, not discarded", () => {
   const mapped = mapStripeError({ rawType: "api_error", requestId: "req_abc123" }, "op");
   assert.equal(mapped.requestId, "req_abc123");
 });
+
+/*
+ * Stripe returns an id for these fields, or the whole object when the caller
+ * expands it. The mapping used to run String() over the union, which on the
+ * object branch yields "[object Object]" -- recorded as the account a payout
+ * went to, or the intent a refund settled against. Neither call expands
+ * anything today, so this was latent rather than broken; adding `expand` to
+ * either request later is all it would take. Found by the lint rules added
+ * alongside these tests, not by a failure.
+ */
+test("an expanded transfer destination maps to the account id, not [object Object]", () => {
+  replies = [{
+    status: 200,
+    body: {
+      id: "tr_expanded",
+      object: "transfer",
+      amount: 100_000,
+      // What Stripe sends back when `expand: ["destination"]` is requested.
+      destination: { id: "acct_vendor", object: "account", payouts_enabled: true },
+    },
+  }];
+
+  return gateway()
+    .createTransfer({
+      amountCents: 100_000,
+      destinationAccountId: "acct_vendor",
+      transferGroup: "gig_abc",
+      idempotencyKey: "release_esc_expanded",
+    })
+    .then((transfer) => {
+      assert.equal(transfer.destinationAccountId, "acct_vendor");
+      assert.ok(
+        !transfer.destinationAccountId.includes("object"),
+        "a payout trail must name the account, not its stringified shape",
+      );
+    });
+});
+
+test("an expanded refund payment_intent maps to the intent id", () => {
+  replies = [{
+    status: 200,
+    body: {
+      id: "re_expanded",
+      object: "refund",
+      amount: 25_000,
+      payment_intent: { id: "pi_original", object: "payment_intent", amount: 25_000 },
+    },
+  }];
+
+  return gateway()
+    .createRefund({ paymentIntentId: "pi_original", amountCents: 25_000, idempotencyKey: "refund_expanded" })
+    .then((refund) => {
+      assert.equal(refund.paymentIntentId, "pi_original");
+      assert.ok(!refund.paymentIntentId.includes("object"));
+    });
+});
+
+test("a refund that reports no payment intent falls back to the one we sent", () => {
+  replies = [{ status: 200, body: { id: "re_null", object: "refund", amount: 1_000, payment_intent: null } }];
+
+  return gateway()
+    .createRefund({ paymentIntentId: "pi_fallback", amountCents: 1_000, idempotencyKey: "refund_null" })
+    .then((refund) => {
+      assert.equal(refund.paymentIntentId, "pi_fallback", "never the string \"null\"");
+    });
+});

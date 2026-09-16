@@ -218,7 +218,14 @@ export class LiveStripeGateway implements StripeGateway {
       return {
         id: transfer.id,
         amountCents: transfer.amount,
-        destinationAccountId: String(transfer.destination),
+        // `destination` is an id until someone expands it, and then it is an
+        // Account object. String() on that branch yields "[object Object]",
+        // which would be recorded as the account a payout went to -- a payout
+        // trail that names nothing. Narrow instead of stringifying.
+        destinationAccountId:
+          typeof transfer.destination === "string"
+            ? transfer.destination
+            : (transfer.destination?.id ?? input.destinationAccountId),
       };
     });
   }
@@ -237,7 +244,11 @@ export class LiveStripeGateway implements StripeGateway {
       return {
         id: refund.id,
         amountCents: refund.amount,
-        paymentIntentId: String(refund.payment_intent ?? input.paymentIntentId),
+        // Same shape as the transfer above: an id, or an expanded object.
+        paymentIntentId:
+          typeof refund.payment_intent === "string"
+            ? refund.payment_intent
+            : (refund.payment_intent?.id ?? input.paymentIntentId),
       };
     });
   }

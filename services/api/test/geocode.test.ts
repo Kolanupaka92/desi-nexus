@@ -151,7 +151,7 @@ test("the address is sent as a query parameter with the current benchmark", asyn
   const geocoder = new CensusGeocoder({
     endpoint: "https://example.invalid/geocoder",
     fetchImpl: async (input) => {
-      seen = new URL(String(input));
+      seen = new URL(typeof input === "string" ? input : input instanceof URL ? input.href : input.url);
       return new Response(JSON.stringify(censusPayload([FRISCO_MATCH])), {
         status: 200,
         headers: { "content-type": "application/json" },
