@@ -20,6 +20,7 @@ import type {
   Application,
   CredentialRepository,
   Credentials,
+  EnquiryRepository,
   EscrowRepository,
   GigRepository,
   ProfileRepository,
@@ -29,6 +30,7 @@ import type {
 import type { BaseUser, CrewProfile, CreatorProfile, HostProfile, Role } from "../../domain/users.js";
 import type { Gig, GigBrief, GigState, TransitionRecord } from "../../domain/gig.js";
 import type { Escrow, EscrowState, LedgerEntry } from "../../domain/escrow.js";
+import type { Enquiry } from "../../domain/enquiry.js";
 import type { Quote } from "../../domain/money.js";
 import type { Database } from "./db.js";
 
@@ -1019,6 +1021,45 @@ function toCredentials(row: Record<string, unknown>): Credentials {
  * Build a Store backed by PostgreSQL. Pass a database scoped with `asUser` to
  * have every read go through the row-level security policies as that user.
  */
+/**
+ * Enquiries: insert, and nothing else.
+ *
+ * No RETURNING clause, which looks like an omission and is not. Migration 006
+ * revokes SELECT on this table from the application role so that no session,
+ * role or mistake in a route can turn into a read of the contact details of
+ * people who never became users. `INSERT ... RETURNING` needs SELECT privilege
+ * on the columns it returns, so a RETURNING here would have forced that grant
+ * back and undone the arrangement to recover one uuid the caller generated in
+ * the first place.
+ *
+ * Which is also why the id is supplied rather than defaulted: the caller has
+ * to know it without being able to read it back.
+ */
+class PgEnquiries implements EnquiryRepository {
+  constructor(private readonly db: Database) {}
+
+  async create(enquiry: Enquiry): Promise<void> {
+    await this.db.query(
+      `INSERT INTO enquiries
+         (id, name, email, phone, event_type, event_date, metro_code, message, source, status, created_at)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`,
+      [
+        enquiry.id,
+        enquiry.name,
+        enquiry.email,
+        enquiry.phone ?? null,
+        enquiry.eventType ?? null,
+        enquiry.eventDate ?? null,
+        enquiry.metroCode ?? null,
+        enquiry.message,
+        enquiry.source ?? null,
+        enquiry.status,
+        enquiry.createdAt,
+      ],
+    );
+  }
+}
+
 export function createPostgresStore(db: Database): Store {
   return {
     users: new PgUsers(db),
@@ -1027,7 +1068,8 @@ export function createPostgresStore(db: Database): Store {
     applications: new PgApplications(db),
     escrows: new PgEscrows(db),
     credentials: new PgCredentials(db),
+    enquiries: new PgEnquiries(db),
   };
 }
 
-export { PgGigs, PgApplications, PgEscrows, PgCredentials, loadGig, loadEscrow };
+export { PgGigs, PgApplications, PgEscrows, PgCredentials, PgEnquiries, loadGig, loadEscrow };

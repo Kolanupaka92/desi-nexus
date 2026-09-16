@@ -24,7 +24,9 @@ import tseslint from "typescript-eslint";
 import nextPlugin from "@next/eslint-plugin-next";
 
 export default tseslint.config(
-  { ignores: [".next/**", "node_modules/**", "eslint.config.mjs", "next-env.d.ts", "e2e/**"] },
+  // scripts/ and e2e/ are plain ESM outside the tsconfig, so the type-aware
+  // rules cannot resolve them; both are developer tooling, not shipped code.
+  { ignores: [".next/**", "node_modules/**", "eslint.config.mjs", "next-env.d.ts", "e2e/**", "scripts/**"] },
   js.configs.recommended,
   ...tseslint.configs.recommendedTypeChecked,
   {

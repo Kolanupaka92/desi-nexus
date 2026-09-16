@@ -4,3 +4,4 @@ next-env.d.ts
 .env*.local
 tsconfig.tsbuildinfo
 e2e/*.png
+e2e/shots/

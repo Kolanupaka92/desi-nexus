@@ -31,12 +31,96 @@
   --gold-bright: #e8c766;
   --gold-soft: #f4e3b4;
   --saffron: #f2a516;
+  /* --- Type ---------------------------------------------------------------
+   *
+   * Two families, loaded by next/font (see lib/fonts.ts) and exposed as
+   * --font-display / --font-text. The fallbacks matter: if the font request
+   * fails the page still has to look deliberate, so the display fallback is a
+   * real book serif rather than the generic `serif` keyword.
+   */
+  --font: var(--font-text), ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --serif: var(--font-display), "Iowan Old Style", Palatino, Georgia, serif;
 
+  /*
+   * One fluid scale, so a headline is never set by eyeballing a clamp() at the
+   * call site -- which is how the same heading ends up three different sizes on
+   * three pages. Each step interpolates between a phone and a 1280px desktop.
+   *
+   * The ratio is roughly 1.2 at the body end and stretches toward 1.28 at the
+   * display end: a tight scale keeps long form pages calm, and the top two
+   * steps need the extra jump to carry a page on their own.
+   */
+  --step--1: clamp(0.82rem, 0.79rem + 0.13vw, 0.88rem);
+  --step-0:  clamp(1rem, 0.97rem + 0.16vw, 1.06rem);
+  --step-1:  clamp(1.15rem, 1.09rem + 0.28vw, 1.28rem);
+  --step-2:  clamp(1.33rem, 1.22rem + 0.5vw, 1.58rem);
+  --step-3:  clamp(1.55rem, 1.35rem + 0.9vw, 2rem);
+  --step-4:  clamp(1.85rem, 1.47rem + 1.7vw, 2.7rem);
+  --step-5:  clamp(2.3rem, 1.5rem + 3.5vw, 4.1rem);
+
+  /*
+   * Spacing, on a 4px base. Named by size rather than by use so a value is not
+   * locked to the first place it appeared; the section rhythm below is the one
+   * exception, because "the gap between two bands" is a decision worth making
+   * once for the whole site.
+   */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+  --space-7: 48px;
+  --space-8: 64px;
+  --space-9: 96px;
+  /* A band's vertical padding. Fluid, because 96px of air above a heading is
+     generous on a desktop and most of a phone screen. */
+  --band-pad: clamp(56px, 7vw, 104px);
+
+  --radius-sm: 6px;
   --radius: 10px;
   --radius-lg: 16px;
-  --shadow: 0 1px 2px rgba(28, 25, 23, 0.05), 0 4px 16px rgba(28, 25, 23, 0.05);
-  --font: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-  --serif: ui-serif, Georgia, "Iowan Old Style", "Times New Roman", serif;
+  --radius-xl: 22px;
+  --radius-pill: 999px;
+
+  /*
+   * Elevation in three steps rather than one --shadow used everywhere. Each is
+   * two layers: a tight contact shadow that reads as the edge, and a wide soft
+   * one that reads as height. A single blurred shadow is the thing that makes a
+   * card look like a 2014 template.
+   */
+  --shadow-sm: 0 1px 2px rgba(28, 25, 23, 0.05), 0 4px 16px rgba(28, 25, 23, 0.05);
+  --shadow: var(--shadow-sm);
+  --shadow-md: 0 2px 4px rgba(28, 25, 23, 0.05), 0 10px 28px rgba(28, 25, 23, 0.09);
+  --shadow-lg: 0 4px 8px rgba(20, 3, 10, 0.10), 0 22px 54px rgba(20, 3, 10, 0.22);
+
+  /* Motion. One duration and one easing, referenced everywhere, so the whole
+     site decelerates the same way. Overridden to 0 under reduced motion. */
+  --ease: cubic-bezier(0.22, 0.61, 0.36, 1);
+  --fast: 130ms;
+  --slow: 420ms;
+
+  /* Layout widths. --shell is the working column; --measure caps a paragraph
+     at a readable line length independently of the column it sits in. */
+  --shell: 1120px;
+  --shell-narrow: 760px;
+  --measure: 64ch;
+}
+
+/*
+ * Anything that animates is a preference, not a requirement. Zeroing the two
+ * motion tokens turns off every transition and reveal on the site at once,
+ * which is why they are tokens: a per-component @media block is the kind of
+ * thing that gets added to four of five components.
+ */
+@media (prefers-reduced-motion: reduce) {
+  :root { --fast: 0ms; --slow: 0ms; }
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }
 
 * { box-sizing: border-box; }
@@ -56,41 +140,109 @@ html, body {
 a { color: var(--maroon); text-decoration: none; }
 a:hover { text-decoration: underline; }
 
-h1, h2, h3 { line-height: 1.2; margin: 0 0 0.5rem; letter-spacing: -0.015em; }
-h1 { font-size: 2.15rem; font-family: var(--serif); }
-h2 { font-size: 1.4rem; }
-h3 { font-size: 1.05rem; }
-p { margin: 0 0 1rem; }
+/*
+ * One focus ring for the entire site.
+ *
+ * :focus-visible rather than :focus, so a mouse click on a button does not
+ * leave a ring behind but a Tab key always does. The ring is drawn in wine
+ * with a paper-coloured inner gap, which keeps it visible on both the light
+ * working surfaces and the dark bands -- a single-colour outline disappears
+ * against one or the other, and "it was visible when I checked" usually means
+ * it was checked on one of the two.
+ */
+:focus-visible {
+  outline: 2px solid var(--maroon);
+  outline-offset: 2px;
+  border-radius: var(--radius-sm);
+}
+.band.dark :focus-visible,
+.band.darker :focus-visible,
+.hero :focus-visible,
+.masthead-dark :focus-visible {
+  outline-color: var(--gold-bright);
+}
 
-.shell { max-width: 1060px; margin: 0 auto; padding: 0 20px; }
+/*
+ * The first thing in the tab order, visible only once focused. Without it a
+ * keyboard visitor tabs through the whole header on every page before reaching
+ * the content, which on the marketing pages is a dozen stops.
+ */
+.skip {
+  position: absolute;
+  left: var(--space-4);
+  top: var(--space-2);
+  z-index: 100;
+  padding: 10px 16px;
+  border-radius: var(--radius);
+  background: var(--maroon);
+  color: #fff;
+  font-weight: 600;
+  /* Off-screen rather than display:none, so it is still focusable. */
+  transform: translateY(-200%);
+  transition: transform var(--fast) var(--ease);
+}
+.skip:focus-visible { transform: translateY(0); text-decoration: none; }
+
+h1, h2, h3, h4 { line-height: 1.16; margin: 0 0 0.5rem; letter-spacing: -0.018em; text-wrap: balance; }
+h1 { font-size: var(--step-4); font-family: var(--serif); }
+h2 { font-size: var(--step-2); }
+h3 { font-size: var(--step-1); }
+h4 { font-size: var(--step-0); }
+p { margin: 0 0 1rem; }
+/* Keeps a paragraph from ending on a single orphaned word, which is the most
+   visible difference between typeset and merely rendered. */
+p, li { text-wrap: pretty; }
+
+.shell { max-width: var(--shell); margin: 0 auto; padding: 0 var(--space-5); }
+.shell.narrow { max-width: var(--shell-narrow); }
 .stack > * + * { margin-top: 1rem; }
 
 /* --- chrome ------------------------------------------------------------- */
 
+/*
+ * The header, on every page.
+ *
+ * Two jobs that pull in opposite directions: on the marketing pages it sits
+ * over a dark hero and should be part of it; on the working pages it sits over
+ * paper and should be a plain bar. Rather than two headers, one bar that starts
+ * transparent on a page that opts in (.masthead-dark) and turns solid once the
+ * page scrolls -- which is also the only state in which it has to be readable
+ * over arbitrary content.
+ */
 .masthead {
   border-bottom: 1px solid var(--line);
   background: var(--card);
   position: sticky;
   top: 0;
-  z-index: 20;
+  z-index: 40;
 }
 .masthead .shell {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 16px;
-  min-height: 62px;
-  flex-wrap: wrap;
+  gap: var(--space-4);
+  min-height: 68px;
 }
 .wordmark {
   font-family: var(--serif);
   font-weight: 600;
-  font-size: 1.2rem;
+  font-size: var(--step-1);
   letter-spacing: -0.02em;
   color: var(--ink);
+  white-space: nowrap;
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
 }
+.wordmark:hover { text-decoration: none; }
 .wordmark span { color: var(--marigold); }
-.masthead nav { display: flex; align-items: center; gap: 18px; font-size: 0.92rem; flex-wrap: wrap; }
+
+.masthead nav {
+  display: flex;
+  align-items: center;
+  gap: var(--space-5);
+  font-size: 0.93rem;
+}
 /*
  * Plain nav links sat at 23px tall -- one pixel under the WCAG 2.2 minimum
  * target size, which is exactly the kind of miss nobody catches by eye. Padding
@@ -101,17 +253,152 @@ p { margin: 0 0 1rem; }
   color: var(--ink-soft);
   display: inline-flex;
   align-items: center;
-  min-height: 32px;
-  padding: 0 2px;
+  min-height: 44px;
+  position: relative;
+}
+.masthead nav a:hover { color: var(--ink); text-decoration: none; }
+/* An underline that grows from the left rather than the browser's default
+   text-decoration, which sits too close to the baseline at this size. */
+.masthead nav a.plain::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 16px;
+  height: 1px;
+  background: var(--marigold);
+  transform: scaleX(0);
+  transform-origin: left;
+  transition: transform var(--fast) var(--ease);
+}
+.masthead nav a.plain:hover::after { transform: scaleX(1); }
+
+/*
+ * The mobile menu, with no JavaScript.
+ *
+ * A checkbox toggles the panel and the label is the button. The alternative --
+ * a client component with useState -- would make the header the only reason a
+ * marketing page ships React to the browser at all, and a menu that works
+ * before hydration is strictly better on the connection most of these visitors
+ * are on.
+ */
+.nav-toggle { position: absolute; opacity: 0; pointer-events: none; }
+.nav-button {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  margin-right: -6px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--card);
+  cursor: pointer;
+  color: var(--ink);
+}
+.nav-button svg { display: block; }
+.nav-toggle:focus-visible + .nav-button {
+  outline: 2px solid var(--maroon);
+  outline-offset: 2px;
+}
+.nav-button .bar-close { display: none; }
+.nav-toggle:checked + .nav-button .bar-open { display: none; }
+.nav-toggle:checked + .nav-button .bar-close { display: block; }
+
+@media (max-width: 860px) {
+  .nav-button { display: inline-flex; }
+  .masthead nav {
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 100%;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0;
+    padding: var(--space-3) var(--space-5) var(--space-5);
+    background: var(--card);
+    border-bottom: 1px solid var(--line);
+    box-shadow: var(--shadow-md);
+    /* Collapsed by default. display:none would drop it out of the tab order,
+       which is what we want closed -- and visibility does that too while
+       leaving the panel animatable. */
+    visibility: hidden;
+    opacity: 0;
+    transform: translateY(-8px);
+    transition: opacity var(--fast) var(--ease), transform var(--fast) var(--ease), visibility var(--fast);
+  }
+  .masthead nav a, .masthead nav form, .masthead nav .btn {
+    width: 100%;
+    justify-content: flex-start;
+  }
+  .masthead nav a { border-bottom: 1px solid var(--line); }
+  .masthead nav .btn { justify-content: center; margin-top: var(--space-3); }
+  .masthead nav form { margin-top: var(--space-2); }
+  .masthead nav form .btn { margin-top: 0; }
+  .nav-toggle:checked ~ nav {
+    visibility: visible;
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
+/* --- Footer -------------------------------------------------------------- */
+
+/*
+ * Four columns of real links rather than two lines of prose.
+ *
+ * Every entry here points at a page that exists. A footer padded with
+ * "Careers", "Press" and "Blog" links to nothing is the single clearest signal
+ * that a site is a template, and crawlers treat a 404-heavy footer exactly as
+ * badly as visitors do.
+ */
 .foot {
   border-top: 1px solid var(--line);
-  margin-top: 64px;
-  padding: 28px 0 48px;
-  color: var(--ink-faint);
-  font-size: 0.87rem;
+  margin-top: var(--space-9);
+  padding: var(--space-8) 0 var(--space-7);
+  background: linear-gradient(180deg, var(--paper), #f6efe4);
+  color: var(--ink-soft);
+  font-size: 0.9rem;
 }
+.foot-grid {
+  display: grid;
+  gap: var(--space-6);
+  grid-template-columns: 1fr;
+}
+@media (min-width: 640px) { .foot-grid { grid-template-columns: repeat(2, 1fr); } }
+@media (min-width: 960px) { .foot-grid { grid-template-columns: 1.4fr repeat(3, 1fr); gap: var(--space-7); } }
+
+.foot-brand p { max-width: 38ch; color: var(--ink-soft); margin: var(--space-3) 0 0; }
+.foot h3 {
+  font-family: var(--font);
+  font-size: 0.74rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+  margin: 0 0 var(--space-3);
+}
+.foot ul { list-style: none; margin: 0; padding: 0; }
+.foot li + li { margin-top: 2px; }
+.foot li a {
+  color: var(--ink-soft);
+  display: inline-flex;
+  align-items: center;
+  min-height: 32px;
+}
+.foot li a:hover { color: var(--maroon); }
+.foot-base {
+  margin-top: var(--space-7);
+  padding-top: var(--space-5);
+  border-top: 1px solid var(--line);
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3) var(--space-5);
+  justify-content: space-between;
+  color: var(--ink-faint);
+  font-size: 0.84rem;
+}
+.foot-base p { margin: 0; }
 
 /* --- surfaces ----------------------------------------------------------- */
 
@@ -122,7 +409,13 @@ p { margin: 0 0 1rem; }
   padding: 22px;
   box-shadow: var(--shadow);
 }
-.card + .card { margin-top: 16px; }
+.card + .card { margin-top: var(--space-4); }
+/*
+ * ...except inside a grid, where the gap already spaces them and the margin
+ * pushes every card after the first down by 16px -- which reads as a staggered
+ * two-column layout and looks like a bug, because it is one.
+ */
+.grid > .card + .card { margin-top: 0; }
 .card h2, .card h3 { margin-top: 0; }
 
 .grid { display: grid; gap: 16px; }
@@ -235,7 +528,33 @@ th { font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.04em; colo
  * Links inline in a sentence are exempt from that rule -- these are standalone
  * navigation, so they are not.
  */
-.crumbs { padding-top: 12px; font-size: 0.84rem; }
+.crumbs { padding-top: var(--space-3); font-size: 0.84rem; }
+/*
+ * An ordered list, because a breadcrumb trail is one: the sequence is the
+ * meaning. It used to be links separated by a bare chevron text node, which a
+ * screen reader reads aloud as "single right-pointing angle quotation mark"
+ * between every step. The separator is drawn by ::before now, so it is
+ * decoration the list markup already conveys.
+ */
+.crumbs ol {
+  list-style: none;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0 var(--space-2);
+  margin: 0;
+  padding: 0;
+}
+.crumbs li { display: flex; align-items: center; gap: var(--space-2); }
+.crumbs li + li::before {
+  content: "";
+  width: 5px;
+  height: 5px;
+  border-top: 1px solid var(--ink-faint);
+  border-right: 1px solid var(--ink-faint);
+  transform: rotate(45deg);
+  opacity: 0.7;
+}
 .crumbs a {
   color: var(--ink-faint);
   display: inline-block;
@@ -304,9 +623,9 @@ th { font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.04em; colo
 
 .hero-inner {
   position: relative;
-  max-width: 1060px;
+  max-width: var(--shell);
   margin: 0 auto;
-  padding: 88px 20px 76px;
+  padding: clamp(64px, 8vw, 104px) var(--space-5) clamp(56px, 6vw, 84px);
 }
 
 .eyebrow {
@@ -330,8 +649,8 @@ th { font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.04em; colo
   font-family: var(--serif);
   /* Fluid so the headline keeps its editorial scale on a phone instead of
      collapsing to body size. */
-  font-size: clamp(2.5rem, 6.2vw, 4.1rem);
-  line-height: 1.04;
+  font-size: var(--step-5);
+  line-height: 1.02;
   letter-spacing: -0.025em;
   margin: 20px 0 0;
   max-width: 15ch;
@@ -386,7 +705,7 @@ th { font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.04em; colo
 
 /* --- Section furniture --------------------------------------------------- */
 
-.band { padding: 74px 0; }
+.band { padding: var(--band-pad) 0; }
 .band.dark { background: linear-gradient(160deg, var(--wine-deep), #170309); color: #fdf6ec; }
 
 /*
@@ -398,84 +717,15 @@ th { font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.04em; colo
 .band.darker { background: linear-gradient(160deg, #1d0510, #0d0205); color: #fdf6ec; }
 .band.paper { background: var(--paper); }
 
-.band-head { max-width: 640px; margin-bottom: 34px; }
+.band-head { max-width: 660px; margin-bottom: var(--space-6); }
 .band-head h2 {
   font-family: var(--serif);
-  font-size: clamp(1.7rem, 3.4vw, 2.3rem);
+  font-size: var(--step-3);
   letter-spacing: -0.02em;
-  margin: 12px 0 10px;
+  margin: var(--space-3) 0 var(--space-3);
 }
 .band.dark .band-head h2 { color: #fffaf2; }
 .band.dark .band-head p { color: rgba(253, 246, 236, 0.72); }
-
-/* --- Occasion cards ------------------------------------------------------ */
-
-/*
- * Each group gets its own hue so the five read as five things rather than one
- * list chopped up. The motif is a corner ornament, not a background fill --
- * behind the text it would cost legibility for decoration.
- */
-.occasions { display: grid; gap: 16px; }
-@media (min-width: 720px) { .occasions { grid-template-columns: repeat(2, 1fr); } }
-@media (min-width: 1000px) { .occasions { grid-template-columns: repeat(3, 1fr); } }
-
-.occasion {
-  position: relative;
-  overflow: hidden;
-  display: block;
-  padding: 26px 24px 24px;
-  border-radius: var(--radius-lg);
-  color: #fffaf2;
-  text-decoration: none;
-  min-height: 210px;
-  transition: transform 140ms ease, box-shadow 140ms ease;
-}
-.occasion:hover { transform: translateY(-3px); box-shadow: 0 14px 34px rgba(38, 4, 15, 0.26); text-decoration: none; }
-
-.occasion::after {
-  content: "";
-  position: absolute;
-  right: -42px;
-  bottom: -46px;
-  width: 172px;
-  height: 172px;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Cg fill='none' stroke='%23ffffff' stroke-width='1.1' stroke-opacity='0.30'%3E%3Ccircle cx='50' cy='50' r='46'/%3E%3Ccircle cx='50' cy='50' r='33'/%3E%3Ccircle cx='50' cy='50' r='20'/%3E%3Cg%3E%3Cpath d='M50 4v92M4 50h92M17 17l66 66M83 17l-66 66'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
-  background-size: contain;
-  opacity: 0.5;
-  pointer-events: none;
-}
-
-.occasion h3 {
-  font-family: var(--serif);
-  font-size: 1.32rem;
-  letter-spacing: -0.01em;
-  margin: 0 0 12px;
-  position: relative;
-}
-.occasion-blurb {
-  position: relative;
-  margin: -6px 0 12px;
-  font-size: 0.86rem;
-  line-height: 1.5;
-  color: rgba(255, 250, 242, 0.66);
-}
-
-.occasion ul {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  position: relative;
-  font-size: 0.9rem;
-  line-height: 1.85;
-  color: rgba(255, 250, 242, 0.88);
-}
-.occasion .more { display: block; margin-top: 12px; font-size: 0.8rem; letter-spacing: 0.06em; text-transform: uppercase; color: rgba(255, 250, 242, 0.75); position: relative; }
-
-.occasion.wedding    { background: linear-gradient(150deg, #7a1230, #3f0819); }
-.occasion.religious  { background: linear-gradient(150deg, #8a4a12, #3d1c05); }
-.occasion.milestone  { background: linear-gradient(150deg, #6b2d6b, #2d0f30); }
-.occasion.festival   { background: linear-gradient(150deg, #a8600f, #48220a); }
-.occasion.commercial { background: linear-gradient(150deg, #1f4f45, #0c221d); }
 
 /* --- Numbered steps ------------------------------------------------------ */
 
@@ -675,15 +925,597 @@ h2 > a, h3 > a, td > a {
 .crew-shot.tint-5 { background: linear-gradient(150deg, #e7bcae, #c3d3ab); }
 .crew-shot.tint-6 { background: linear-gradient(150deg, #dcc8a9, #b2c7dd); }
 .crew-shot.tint-7 { background: linear-gradient(150deg, #e4b3c6, #ccd0a3); }
-.crew-shot::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 120 120'%3E%3Cg fill='none' stroke='%237a1f3d' stroke-width='1' stroke-opacity='0.24'%3E%3Ccircle cx='60' cy='60' r='30'/%3E%3Ccircle cx='60' cy='60' r='44'/%3E%3Cpath d='M60 12v96M12 60h96M26 26l68 68M94 26l-68 68'/%3E%3C/g%3E%3C/svg%3E");
-  background-size: 70%;
-  background-position: center;
-  background-repeat: no-repeat;
-}
 .crew-body { padding: 14px 16px 16px; }
 .crew-body strong { display: block; font-size: 1rem; }
 .crew-body small { display: block; margin-top: 4px; color: var(--ink-faint); font-size: 0.82rem; line-height: 1.5; }
+
+/* --- Shared furniture ---------------------------------------------------- */
+
+/*
+ * Visible to a screen reader, not to the eye. `display: none` and
+ * `visibility: hidden` both remove the element from the accessibility tree,
+ * which is the opposite of what this is for; clipping a 1px box is the only
+ * technique that leaves the text announced.
+ */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* The skip link targets <main>, which needs tabindex="-1" to receive focus --
+   and then draws a ring around the entire page, which is not useful. */
+main:focus { outline: none; }
+
+.band-head.centered { margin-left: auto; margin-right: auto; text-align: center; }
+.band-head.centered .eyebrow { justify-content: center; }
+.band-head p { max-width: var(--measure); }
+
+/* The eyebrow is gold on the dark bands and maroon on paper. It used to be
+   recoloured with an inline style at four call sites, and was wrong at two. */
+.eyebrow.on-paper { color: var(--maroon); }
+.eyebrow.on-paper::before { background: var(--marigold); }
+
+/* --- FAQ ----------------------------------------------------------------- */
+
+.faq { border-top: 1px solid var(--line); }
+.band.dark .faq { border-color: rgba(232, 199, 102, 0.22); }
+
+.faq-item { border-bottom: 1px solid var(--line); }
+.band.dark .faq-item { border-color: rgba(232, 199, 102, 0.22); }
+
+.faq-item summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-5);
+  padding: var(--space-5) 0;
+  cursor: pointer;
+  font-weight: 600;
+  font-size: var(--step-0);
+  /* Chrome and Safari draw their own marker; the plus sign on the right is
+     the affordance, and two of them is one too many. */
+  list-style: none;
+}
+.faq-item summary::-webkit-details-marker { display: none; }
+.faq-item summary svg { flex: none; color: var(--marigold); transition: transform var(--fast) var(--ease); }
+.faq-item[open] summary svg { transform: rotate(45deg); }
+.faq-item p {
+  margin: 0;
+  padding: 0 var(--space-7) var(--space-5) 0;
+  max-width: var(--measure);
+  color: var(--ink-soft);
+}
+.band.dark .faq-item summary { color: #fffaf2; }
+.band.dark .faq-item p { color: rgba(253, 246, 236, 0.74); }
+
+/* --- Planning cards ------------------------------------------------------ */
+
+/*
+ * "What are you planning?" -- the first question a visitor can answer, and the
+ * one that routes them. Each card is a real occasion group from the taxonomy
+ * the API serves, linking into the search pre-filtered to it; none of them is
+ * a category invented to round the grid out to six.
+ */
+.planner { display: grid; gap: var(--space-4); }
+@media (min-width: 640px) { .planner { grid-template-columns: repeat(2, 1fr); } }
+/*
+ * Five cards, not six. A three-column grid leaves the second row two-thirds
+ * full with a hole where a sixth card would be, and the usual fix -- inventing
+ * a sixth category -- is the one thing that must not happen here: the groups
+ * are the taxonomy the API serves, and a card for a kind of function the
+ * platform does not have is a lie told to square a layout.
+ *
+ * So the grid is six columns and the cards claim different widths: three
+ * two-column cards on the first row, two three-column cards on the second.
+ * The second row reads as deliberately wider rather than as a row that ran out.
+ */
+@media (min-width: 1000px) {
+  .planner { grid-template-columns: repeat(6, 1fr); }
+  .plan-card { grid-column: span 2; }
+  .plan-card:nth-child(4), .plan-card:nth-child(5) { grid-column: span 3; }
+  /* Wider cards would otherwise be much taller than the row above them. */
+  .plan-card:nth-child(4) .plan-shot, .plan-card:nth-child(5) .plan-shot { aspect-ratio: 21 / 9; }
+}
+
+.plan-card {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  background: var(--card);
+  color: inherit;
+  overflow: hidden;
+  transition: transform var(--fast) var(--ease), box-shadow var(--fast) var(--ease),
+    border-color var(--fast) var(--ease);
+}
+.plan-card:hover {
+  transform: translateY(-3px);
+  border-color: var(--marigold);
+  box-shadow: var(--shadow-md);
+  text-decoration: none;
+}
+
+/*
+ * The image slot.
+ *
+ * A fixed aspect ratio rather than a fixed height, so the card's geometry is
+ * decided now and a photograph dropped in later inherits it instead of
+ * reflowing the grid. Until then it is a tinted ground carrying the same drawn
+ * motif as the speciality cards -- a grey box would read as a page that failed
+ * to load, and a stock photograph of somebody else's wedding would be a claim
+ * about this platform that is not true.
+ */
+.plan-shot {
+  display: block;
+  position: relative;
+  /*
+   * Taller on a phone than on a desktop, deliberately.
+   *
+   * A single-column card at 390px is about 350px wide; at 16:9 that is a
+   * 197px strip, which reads as a thumbnail stuck to the top of a text block.
+   * 4:3 gives it 260px and makes the picture the thing you see first, which is
+   * the point of having one. The ratio tightens as the grid gets more columns
+   * and each card gets narrower.
+   */
+  aspect-ratio: 4 / 3;
+  background: linear-gradient(150deg, var(--marigold-soft), var(--maroon-soft));
+}
+@media (min-width: 640px) { .plan-shot { aspect-ratio: 16 / 10; } }
+.plan-shot.tint-0 { background: linear-gradient(150deg, #f3cfa6, #dfa0b6); }
+.plan-shot.tint-1 { background: linear-gradient(150deg, #e8cfa8, #c9b7e0); }
+.plan-shot.tint-2 { background: linear-gradient(150deg, #c9d8c0, #e7c6a8); }
+.plan-shot.tint-3 { background: linear-gradient(150deg, #f0c69c, #d9b0c4); }
+.plan-shot.tint-4 { background: linear-gradient(150deg, #bccfdd, #e2c8ae); }
+.plan-body {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  padding: var(--space-5) var(--space-5) var(--space-5);
+}
+.plan-card h3 { font-family: var(--serif); font-size: var(--step-2); margin: 0 0 var(--space-2); }
+.plan-card p { margin: 0 0 var(--space-4); color: var(--ink-soft); font-size: 0.92rem; }
+/* auto on top pushes the list to the card's foot, so a row of cards lines up
+   on the tags whatever the length of the sentence above them. */
+.plan-list {
+  margin: auto 0 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  font-size: 0.78rem;
+  color: var(--ink-faint);
+}
+.plan-list li {
+  padding: 3px 9px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-pill);
+  background: var(--paper);
+}
+
+/* --- Call to action ------------------------------------------------------ */
+
+.cta {
+  display: grid;
+  gap: var(--space-5);
+  align-items: center;
+  padding: clamp(28px, 4vw, 52px);
+  border-radius: var(--radius-xl);
+  background:
+    radial-gradient(34rem 18rem at 88% 8%, rgba(242, 165, 22, 0.24), transparent 62%),
+    linear-gradient(150deg, var(--wine), var(--wine-deep));
+  color: #fdf6ec;
+}
+@media (min-width: 880px) { .cta { grid-template-columns: 1.3fr auto; gap: var(--space-7); } }
+.cta h2 {
+  font-family: var(--serif);
+  font-size: var(--step-3);
+  color: #fffaf2;
+  margin: var(--space-3) 0 var(--space-3);
+}
+.cta p { margin: 0; color: rgba(253, 246, 236, 0.78); max-width: 52ch; }
+.cta-actions { display: flex; flex-wrap: wrap; gap: var(--space-3); }
+
+/* --- Vendor profile ------------------------------------------------------ */
+
+.vendor-head {
+  display: grid;
+  gap: var(--space-5);
+  align-items: start;
+  padding: var(--space-6) 0 var(--space-5);
+}
+@media (min-width: 760px) { .vendor-head { grid-template-columns: 160px 1fr; gap: var(--space-6); } }
+
+.vendor-avatar {
+  aspect-ratio: 1;
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--line);
+  background: linear-gradient(150deg, var(--marigold-soft), var(--maroon-soft));
+  display: grid;
+  place-items: center;
+  font-family: var(--serif);
+  font-size: 2.6rem;
+  color: var(--maroon);
+  max-width: 160px;
+}
+.vendor-head h1 { margin: 0; font-size: var(--step-4); }
+.vendor-headline { font-size: var(--step-1); color: var(--ink-soft); margin: var(--space-3) 0 0; max-width: var(--measure); }
+.vendor-meta { display: flex; flex-wrap: wrap; gap: var(--space-2); margin-top: var(--space-4); }
+.vendor-about { max-width: var(--measure); white-space: pre-line; }
+
+/* --- Scroll reveal -------------------------------------------------------- */
+
+/*
+ * A section fades and lifts the first time it comes into view. Driven by
+ * animation-timeline rather than an IntersectionObserver, so it costs no
+ * JavaScript and degrades to "already visible" in the browsers that do not
+ * support it -- which is the right failure: a reveal implemented in JS shows
+ * a blank page if the script fails, and that is how a marketing site ends up
+ * empty for the visitors it can least afford to lose.
+ *
+ * The reduced-motion block above zeroes --slow, which stops it entirely.
+ */
+@supports (animation-timeline: view()) {
+  @media (prefers-reduced-motion: no-preference) {
+    .reveal {
+      animation: reveal linear both;
+      animation-timeline: view();
+      animation-range: entry 8% cover 26%;
+    }
+    @keyframes reveal {
+      from { opacity: 0; transform: translateY(18px); }
+      to { opacity: 1; transform: none; }
+    }
+  }
+}
+
+/* --- Enquiry form --------------------------------------------------------- */
+
+/*
+ * The one thing on this site a visitor can do without an account. It sits on
+ * a card over the dark band so it reads as the object on the page rather than
+ * as another section of copy.
+ */
+.enquiry-panel {
+  display: grid;
+  gap: var(--space-6);
+  align-items: start;
+}
+@media (min-width: 940px) {
+  .enquiry-panel { grid-template-columns: 0.85fr 1.15fr; gap: var(--space-8); }
+}
+.enquiry-panel .enquiry-intro h2 {
+  font-family: var(--serif);
+  font-size: var(--step-3);
+  color: #fffaf2;
+  margin: var(--space-3) 0 var(--space-3);
+}
+.enquiry-panel .enquiry-intro p { color: rgba(253, 246, 236, 0.76); max-width: 42ch; }
+.enquiry-points { list-style: none; margin: var(--space-5) 0 0; padding: 0; }
+.enquiry-points li {
+  position: relative;
+  padding-left: 26px;
+  margin-bottom: var(--space-3);
+  color: rgba(253, 246, 236, 0.8);
+  font-size: 0.93rem;
+}
+.enquiry-points li::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 7px;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  border: 1px solid var(--gold);
+  background: rgba(201, 162, 39, 0.35);
+}
+
+.enquiry {
+  display: grid;
+  gap: var(--space-4);
+  padding: clamp(20px, 3vw, 30px);
+  border-radius: var(--radius-xl);
+  background: var(--paper);
+  box-shadow: var(--shadow-lg);
+}
+.enquiry-row { display: grid; gap: var(--space-4); }
+@media (min-width: 560px) { .enquiry-row { grid-template-columns: 1fr 1fr; } }
+
+.enquiry .field + .field { margin-top: 0; }
+.enquiry label { display: flex; align-items: baseline; gap: var(--space-2); }
+.enquiry .optional {
+  font-weight: 400;
+  font-size: 0.76rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+}
+.enquiry select {
+  /* Matching the height of the text inputs beside them; a select left to the
+     platform default sits two pixels short and the row looks misaligned. */
+  min-height: 42px;
+}
+.enquiry-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3) var(--space-4);
+  margin-top: var(--space-2);
+}
+.enquiry-actions .hint { margin: 0; flex: 1 1 18ch; }
+
+/*
+ * The honeypot.
+ *
+ * Off-screen rather than display:none or type=hidden, both of which a bot can
+ * cheaply detect and skip. Kept out of the tab order by the input's own
+ * tabindex and out of the accessibility tree by aria-hidden on the wrapper,
+ * so nobody using a keyboard or a screen reader ever reaches it.
+ */
+.hp {
+  position: absolute;
+  left: -9999px;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+}
+
+/* The confirmation that replaces the form. */
+.enquiry-done {
+  padding: clamp(28px, 4vw, 44px);
+  border-radius: var(--radius-xl);
+  background: var(--paper);
+  box-shadow: var(--shadow-lg);
+  color: var(--green);
+  text-align: center;
+}
+.enquiry-done h3 {
+  font-family: var(--serif);
+  font-size: var(--step-2);
+  color: var(--ink);
+  margin: var(--space-4) 0 var(--space-2);
+}
+.enquiry-done p { color: var(--ink-soft); margin: 0; max-width: 46ch; margin-inline: auto; }
+
+/* --- Gallery -------------------------------------------------------------- */
+
+.gallery-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin-bottom: var(--space-5);
+}
+.chip {
+  /* A real button, not a styled div: it is a control, and a keyboard has to
+     reach it and Enter has to work without any of that being re-implemented. */
+  appearance: none;
+  min-height: 38px;
+  padding: 0 16px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-pill);
+  background: var(--card);
+  color: var(--ink-soft);
+  font: inherit;
+  font-size: 0.88rem;
+  cursor: pointer;
+  transition: border-color var(--fast) var(--ease), color var(--fast) var(--ease),
+    background var(--fast) var(--ease);
+}
+.chip:hover { border-color: var(--marigold); color: var(--ink); }
+.chip.on { background: var(--maroon); border-color: var(--maroon); color: #fff; }
+
+.gallery {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: var(--space-3);
+  grid-template-columns: repeat(2, 1fr);
+}
+@media (min-width: 640px) { .gallery { grid-template-columns: repeat(3, 1fr); } }
+@media (min-width: 980px) { .gallery { grid-template-columns: repeat(4, 1fr); } }
+
+.gallery-item {
+  position: relative;
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  background: var(--marigold-soft);
+  /* Every tile the same shape whatever the source file, so the grid is a grid
+     rather than a ragged edge; the image covers rather than distorts. */
+  aspect-ratio: 4 / 5;
+}
+.gallery-img { width: 100%; height: 100%; object-fit: cover; display: block; }
+
+.gallery-caption {
+  position: absolute;
+  inset: auto 0 0 0;
+  padding: 26px var(--space-4) var(--space-3);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 0.78rem;
+  color: #fffaf2;
+  /* A gradient rather than a flat panel, so the caption is legible over a dark
+     photograph and over a bright one without hiding either. */
+  background: linear-gradient(180deg, transparent, rgba(20, 3, 10, 0.78));
+}
+.gallery-occasion { font-weight: 600; letter-spacing: 0.02em; }
+.gallery-credit { color: rgba(255, 250, 242, 0.78); }
+.gallery-credit a { color: inherit; text-decoration: underline; text-underline-offset: 2px; }
+
+/* --- Testimonials --------------------------------------------------------- */
+
+.quotes {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: var(--space-4);
+}
+@media (min-width: 820px) { .quotes { grid-template-columns: repeat(3, 1fr); } }
+
+.quotes figure {
+  margin: 0;
+  height: 100%;
+  padding: var(--space-5);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  background: var(--card);
+  display: flex;
+  flex-direction: column;
+}
+.quotes blockquote { margin: 0; flex: 1; }
+.quotes blockquote p {
+  margin: 0;
+  font-family: var(--serif);
+  font-size: var(--step-1);
+  line-height: 1.5;
+  color: var(--ink);
+}
+/* A drawn quote mark rather than a typed one, so it sits where it should
+   instead of pushing the first line in by a character. */
+.quotes blockquote p::before {
+  content: "\201C";
+  color: var(--marigold);
+  font-size: 1.6em;
+  line-height: 0;
+  vertical-align: -0.28em;
+  margin-right: 2px;
+}
+.quotes figcaption {
+  margin-top: var(--space-4);
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--line);
+  font-size: 0.87rem;
+}
+.quotes figcaption strong { display: block; color: var(--ink); }
+.quotes figcaption span { color: var(--ink-faint); }
+
+
+/* --- Motifs ---------------------------------------------------------------
+ *
+ * The drawn artwork in every image slot. Two tokens rather than hard-coded
+ * colours, so a card sets the pair once and the piece inside it follows --
+ * which is what lets the same thirteen drawings sit on a light tint here and
+ * on a dark band elsewhere without a second set being drawn.
+ */
+.motif {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  --motif-ink: rgba(106, 26, 53, 0.82);
+  --motif-accent: rgba(210, 122, 28, 0.95);
+  /*
+   * No padding. The drawings already carry their own margin inside the
+   * viewBox, and `meet` letterboxes a 4:3 drawing inside a 16:9 slot on top of
+   * that -- the two compounded left each piece floating in the middle of a
+   * mostly empty tint, which reads as a picture that failed to load rather
+   * than as artwork.
+   */
+  padding: 0;
+  box-sizing: border-box;
+  /* The art is decoration and the caption is the content; if the two ever
+     overlap, the caption wins. */
+  pointer-events: none;
+}
+
+/* Slightly deeper ink on the wider plan cards, where the drawing is larger and
+   a light line reads as unfinished. */
+.plan-shot .motif { --motif-ink: rgba(88, 18, 42, 0.85); }
+
+/* The craft drawings are simpler, so they take a little more air. */
+.crew-shot .motif { padding: 6%; }
+
+/* --- Plan page ------------------------------------------------------------ */
+
+.plan-hero {
+  display: grid;
+  gap: var(--space-5);
+  align-items: center;
+  padding: var(--space-6) 0 var(--space-2);
+}
+@media (min-width: 860px) {
+  .plan-hero { grid-template-columns: 1.35fr 1fr; gap: var(--space-7); }
+}
+.plan-hero-art {
+  position: relative;
+  aspect-ratio: 4 / 3;
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  /* Ordered after the copy on a phone, beside it on a desktop -- and small
+     enough on a phone that it never pushes the h1 off the first screen. */
+  max-height: 260px;
+}
+.plan-hero-art .motif { --motif-ink: rgba(88, 18, 42, 0.85); padding: 6%; }
+
+/*
+ * One tile per function, drawn rather than listed.
+ *
+ * Two columns on a phone rather than one: these are recognised at a glance and
+ * a single column would make a ten-function group a page of scrolling.
+ */
+.occasion-grid {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: var(--space-3);
+  grid-template-columns: repeat(2, 1fr);
+}
+@media (min-width: 620px) { .occasion-grid { grid-template-columns: repeat(3, 1fr); } }
+@media (min-width: 900px) { .occasion-grid { grid-template-columns: repeat(5, 1fr); } }
+
+.occasion-tile {
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  background: var(--card);
+}
+.occasion-tile .motif {
+  position: relative;
+  display: block;
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  padding: 10%;
+  --motif-ink: rgba(106, 26, 53, 0.8);
+  --motif-accent: rgba(210, 122, 28, 0.95);
+}
+.occasion-tile span {
+  display: block;
+  padding: var(--space-3) var(--space-3) var(--space-4);
+  border-top: 1px solid var(--line);
+  font-size: 0.83rem;
+  font-weight: 560;
+  line-height: 1.35;
+  text-wrap: balance;
+}
+
+/* --- Card visuals ---------------------------------------------------------
+ *
+ * The picture area of a card, whether it currently holds a photograph or a
+ * drawing. The two occupy exactly the same box, so supplying photography later
+ * changes the picture and nothing about the layout.
+ */
+.card-visual {
+  position: relative;
+  overflow: hidden;
+  /* A tinted ground behind the image. If a photograph 404s or is slow, what
+     shows through is the brand colour at the right size rather than a broken
+     icon or a collapsed box. */
+  background: linear-gradient(150deg, var(--marigold-soft), var(--maroon-soft));
+}
+.card-photo {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}

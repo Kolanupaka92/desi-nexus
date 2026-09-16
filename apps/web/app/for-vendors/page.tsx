@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { METROS, SPECIALITIES } from "@/content/seo";
+import { CTASection } from "@/components/site/CTASection";
 
 /**
  * The supply side's own page.
@@ -49,7 +50,7 @@ export default function ForVendorsPage() {
     <>
       <section style={{ padding: "40px 0 8px", maxWidth: 760 }}>
         <span className="pill">Now onboarding crew &amp; creators</span>
-        <h1 style={{ marginTop: 16, fontSize: "2.5rem" }}>
+        <h1 style={{ marginTop: "var(--space-4)" }}>
           Get booked for the functions you actually specialise in.
         </h1>
         <p className="lede">
@@ -111,15 +112,14 @@ export default function ForVendorsPage() {
         </ul>
       </section>
 
-      <div className="card accent-card" style={{ marginTop: 26 }}>
-        <h3 style={{ marginTop: 0 }}>Build a profile in about ten minutes</h3>
-        <p>
-          Your specialities, the styles you actually work in, the languages you speak on the day,
-          your base and how far you will travel. That is what the match engine reads.
-        </p>
-        <Link href="/register" className="btn accent">
-          Join as a vendor
-        </Link>
+      <div style={{ marginTop: 40 }}>
+        <CTASection
+          eyebrow="Getting listed"
+          title="Build a profile in about ten minutes."
+          body="Your specialities, the styles you actually work in, the languages you speak on the day, your base and how far you will travel. That is what the match engine reads — and when you are ready, one profile can be published as a public page you can link to."
+          primary={{ href: "/register", label: "Join as a vendor" }}
+          secondary={{ href: "/gigs", label: "See open gigs" }}
+        />
       </div>
     </>
   );

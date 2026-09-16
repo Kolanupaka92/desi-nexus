@@ -9,7 +9,9 @@
 import type { BaseUser, CrewProfile, CreatorProfile, HostProfile } from "../domain/users.js";
 import type { Gig } from "../domain/gig.js";
 import type { Escrow } from "../domain/escrow.js";
+import type { Enquiry } from "../domain/enquiry.js";
 import type { Cents } from "../domain/money.js";
+import { UNIQUE_VIOLATION } from "./postgres/db.js";
 
 export interface Application {
   readonly id: string;
@@ -101,6 +103,22 @@ export interface EscrowRepository {
   save(escrow: Escrow): Promise<Escrow>;
 }
 
+/**
+ * Enquiries are write-only through the application's connection.
+ *
+ * There is deliberately no `byId`, no `list` and no `search` here. Migration
+ * 006 revokes SELECT on the table from the application role, so a read method
+ * on this interface would be a method the PostgreSQL implementation could not
+ * honour -- and the in-memory one would, which is the worst of both: a test
+ * proving a read works against a store that is not the one production uses.
+ *
+ * Triage reads the table through the system connection, which is a different
+ * credential and, when it exists, a different surface.
+ */
+export interface EnquiryRepository {
+  create(enquiry: Enquiry): Promise<void>;
+}
+
 export interface CredentialRepository {
   put(credentials: Credentials): Promise<Credentials>;
   byUserId(userId: string): Promise<Credentials | undefined>;
@@ -114,6 +132,7 @@ export interface Store {
   readonly applications: ApplicationRepository;
   readonly escrows: EscrowRepository;
   readonly credentials: CredentialRepository;
+  readonly enquiries: EnquiryRepository;
 }
 
 /**
@@ -201,7 +220,35 @@ class MemoryProfiles implements ProfileRepository {
     };
   }
 
+  /**
+   * Slugs are unique across every vendor, and this store has to say so too.
+   *
+   * The SQL schema enforces it with a UNIQUE column; in memory there is no
+   * constraint to lean on, so two vendors could both hold `anjali-studio` and
+   * `publishedBySlug` would return whichever the iteration order reached
+   * first -- one public address quietly resolving to either of two people.
+   * That is not a difference the tests would have caught, because the
+   * assertions that run against both backings never claimed one address twice.
+   *
+   * The error carries PostgreSQL's unique-violation code so the routes need
+   * exactly one branch for it rather than one per store. Development runs on
+   * this store when DATABASE_URL is unset, which is precisely where a
+   * constraint that exists only in production is worth nothing.
+   */
+  private assertSlugFree(profile: CrewProfile): void {
+    if (!profile.slug) return;
+    for (const other of this.crewMap.values()) {
+      if (other.userId !== profile.userId && other.slug === profile.slug) {
+        throw Object.assign(new Error(`slug ${profile.slug} is already in use`), {
+          code: UNIQUE_VIOLATION,
+          constraint: "crew_profiles_slug_key",
+        });
+      }
+    }
+  }
+
   async putCrew(profile: CrewProfile): Promise<CrewProfile> {
+    this.assertSlugFree(profile);
     const kept = MemoryProfiles.preserve(this.crewMap.get(profile.userId), profile);
     this.crewMap.set(profile.userId, clone(kept));
     return clone(kept);
@@ -350,6 +397,30 @@ class MemoryCredentials implements CredentialRepository {
   }
 }
 
+/**
+ * Enquiries, in memory.
+ *
+ * The rows are kept rather than dropped on the floor even though nothing can
+ * read them back through the interface: a test asserting "the endpoint
+ * accepted it" would otherwise be asserting that a no-op does not throw. The
+ * list is exposed as a readonly view for tests alone, which is why it is a
+ * property on the class rather than a method on the interface -- adding it to
+ * the interface would put a read on the PostgreSQL implementation that the
+ * application's database role is not permitted to perform.
+ */
+class MemoryEnquiries implements EnquiryRepository {
+  private readonly rows: Enquiry[] = [];
+
+  async create(enquiry: Enquiry): Promise<void> {
+    this.rows.push(clone(enquiry));
+  }
+
+  /** Test-only. Not on EnquiryRepository; see the note above. */
+  get all(): readonly Enquiry[] {
+    return this.rows.map(clone);
+  }
+}
+
 export function createInMemoryStore(): Store {
   return {
     users: new MemoryUsers(),
@@ -358,5 +429,6 @@ export function createInMemoryStore(): Store {
     applications: new MemoryApplications(),
     escrows: new MemoryEscrows(),
     credentials: new MemoryCredentials(),
+    enquiries: new MemoryEnquiries(),
   };
 }

@@ -1,7 +1,10 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import { cookies } from "next/headers";
 import { ACCESS_COOKIE } from "@/lib/api";
+import { display, text } from "@/lib/fonts";
+import { Header } from "@/components/site/Header";
+import { Footer } from "@/components/site/Footer";
+import { JsonLd } from "@/components/site/JsonLd";
 import "./globals.css";
 
 /**
@@ -12,8 +15,10 @@ import "./globals.css";
  * served the page, so a preview deployment or an apex/www mismatch quietly
  * declares itself canonical and splits the ranking it was meant to consolidate.
  */
+const SITE = process.env.NEXT_PUBLIC_SITE_URL ?? "https://desi-nexus.com";
+
 export const metadata: Metadata = {
-  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL ?? "https://desi-nexus.com"),
+  metadataBase: new URL(SITE),
   title: {
     default: "DESI-NEXUS — South Asian event talent in Texas",
     template: "%s · DESI-NEXUS",
@@ -25,59 +30,73 @@ export const metadata: Metadata = {
     description:
       "Verified crew and creators for Sangeets, Half-Saree Functions, Griha Pravesham, boutique shoots and more.",
     type: "website",
+    siteName: "DESI-NEXUS",
   },
+  twitter: { card: "summary_large_image" },
+  // The browser tab colour, matched to the hero rather than left white, so a
+  // phone's address bar joins the page instead of sitting on top of it.
+  other: { "theme-color": "#26040f" },
 };
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
   const signedIn = Boolean((await cookies()).get(ACCESS_COOKIE)?.value);
 
   return (
-    <html lang="en">
+    <html lang="en" className={`${display.variable} ${text.variable}`}>
       <body>
-        <header className="masthead">
-          <div className="shell">
-            <Link href="/" className="wordmark">
-              DESI<span>·</span>NEXUS
-            </Link>
-            <nav>
-              <Link href="/gigs">Browse gigs</Link>
-              {signedIn ? (
-                <>
-                  <Link href="/dashboard">Dashboard</Link>
-                  <Link href="/gigs/new" className="btn small accent">
-                    Post a gig
-                  </Link>
-                  <form action="/api/session/logout" method="post">
-                    <button type="submit" className="btn small secondary">
-                      Sign out
-                    </button>
-                  </form>
-                </>
-              ) : (
-                <>
-                  <Link href="/login">Sign in</Link>
-                  <Link href="/register" className="btn small accent">
-                    Join
-                  </Link>
-                </>
-              )}
-            </nav>
-          </div>
-        </header>
+        {/*
+          Organization and WebSite, once, at the root.
+          Deliberately thin: name, URL and the area served, all of which are
+          true. No aggregateRating, no founding date, no employee count, no
+          logo we do not have -- structured data asserting things the business
+          cannot back is a manual action waiting to happen, and the fields
+          below are the ones that actually do anything in a knowledge panel.
+        */}
+        <JsonLd
+          data={{
+            "@context": "https://schema.org",
+            "@graph": [
+              {
+                "@type": "Organization",
+                "@id": `${SITE}/#organization`,
+                name: "DESI-NEXUS",
+                url: SITE,
+                description:
+                  "A marketplace connecting South Asian event hosts in Texas with the crew and creators who work their events.",
+                areaServed: {
+                  "@type": "State",
+                  name: "Texas",
+                },
+              },
+              {
+                "@type": "WebSite",
+                "@id": `${SITE}/#website`,
+                url: SITE,
+                name: "DESI-NEXUS",
+                publisher: { "@id": `${SITE}/#organization` },
+                inLanguage: "en-US",
+              },
+            ],
+          }}
+        />
 
-        <main className="shell">{children}</main>
+        <a href="#content" className="skip">
+          Skip to content
+        </a>
 
-        <footer className="foot">
-          <div className="shell">
-            <p>
-              DESI-NEXUS — serving Dallas-Fort Worth, Greater Houston, Austin, San Antonio,
-              the Rio Grande Valley, El Paso, Corpus Christi and Lubbock.
-            </p>
-            <p className="faint">
-              Payments are held in escrow and released after the event. Pilot region: Texas.
-            </p>
-          </div>
-        </footer>
+        <Header signedIn={signedIn} />
+
+        {/*
+          tabIndex -1 so the skip link can move focus here, not merely scroll
+          to it -- without it the link jumps the viewport and leaves the next
+          Tab back in the header, which is the failure mode that makes people
+          assume skip links do not work.
+        */}
+        <main id="content" tabIndex={-1} className="shell">
+          {children}
+        </main>
+
+        <Footer />
       </body>
     </html>
   );

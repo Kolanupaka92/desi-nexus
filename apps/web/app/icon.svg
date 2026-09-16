@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="DESI-NEXUS">
+  <!--
+    The tab mark, and the only piece of drawn identity the site has.
+
+    A jaali diamond -- the interlaced lattice the hero's texture is built from
+    -- rather than a letterform, because "DN" at 16px is two grey smudges and
+    because the lattice is the one shape this brand already owns. Drawn as SVG
+    so it is sharp at 16px and at 512px from one 700-byte file, and so the
+    colours are the palette's own tokens rather than a screenshot of them.
+  -->
+  <rect width="64" height="64" rx="14" fill="#26040f"/>
+  <g fill="none" stroke="#c9a227" stroke-width="2.4" stroke-linejoin="round">
+    <path d="M32 9 55 32 32 55 9 32Z"/>
+    <path d="M32 21 43 32 32 43 21 32Z" stroke="#e8c766"/>
+  </g>
+  <circle cx="32" cy="32" r="3.2" fill="#f2a516"/>
+</svg>

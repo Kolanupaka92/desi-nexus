@@ -27,6 +27,22 @@ export const POLICIES = {
   discovery: { capacity: 120, refillPerSecond: 1 },
   /** Anything that moves money. */
   payments: { capacity: 30, refillPerSecond: 0.5 },
+  /*
+   * The public contact form. Anonymous, unauthenticated, and writes a row --
+   * which makes it the one endpoint a spam script will find first.
+   *
+   * Looser than it first looks, and deliberately. The bucket is keyed on the
+   * client address, and this audience is overwhelmingly on a phone: carrier
+   * CGNAT puts a large number of real people behind one address, so a limit
+   * tight enough to be satisfying here silently blocks leads that are indis-
+   * tinguishable from an attack. Twenty an hour costs an operator twenty rows
+   * to delete in the worst case; the alternative costs them a customer they
+   * never hear about, which is the more expensive failure by a wide margin.
+   *
+   * The honeypot on the form removes the untargeted majority before this is
+   * reached, and the edge WAF carries the coarse limits above it.
+   */
+  enquiry: { capacity: 20, refillPerSecond: 20 / 3600 },
   default: { capacity: 300, refillPerSecond: 5 },
 } as const satisfies Record<string, BucketPolicy>;
 

@@ -39,10 +39,27 @@ interface RequestOptions {
   readonly authenticated?: boolean;
   /** Seconds to cache; omit for anything user-specific. */
   readonly revalidate?: number;
+  /**
+   * How long to wait before giving up, in milliseconds.
+   *
+   * `fetch` has no timeout of its own: an API that refuses a connection fails
+   * in microseconds, and one that drops the packet hangs until the platform's
+   * TCP timeout, which is minutes. Those are the same outage to a visitor and
+   * wildly different to the caller, and the second one is the common shape --
+   * a security group, a scaled-to-zero service, a DNS name that resolves to
+   * somewhere quiet.
+   */
+  readonly timeoutMs?: number;
 }
 
+/**
+ * Long enough that a slow-but-working API still answers; short enough that a
+ * dead one does not hold a request open until something upstream gives up.
+ */
+const DEFAULT_TIMEOUT_MS = 10_000;
+
 export async function apiFetch<T>(path: string, options: RequestOptions = {}): Promise<T> {
-  const { method = "GET", body, authenticated = true, revalidate } = options;
+  const { method = "GET", body, authenticated = true, revalidate, timeoutMs } = options;
 
   const headers: Record<string, string> = { "content-type": "application/json" };
   if (authenticated) {
@@ -56,6 +73,7 @@ export async function apiFetch<T>(path: string, options: RequestOptions = {}): P
     ...(body === undefined ? {} : { body: JSON.stringify(body) }),
     // User-specific reads must never be cached across users.
     ...(revalidate === undefined ? { cache: "no-store" as const } : { next: { revalidate } }),
+    signal: AbortSignal.timeout(timeoutMs ?? DEFAULT_TIMEOUT_MS),
   });
 
   const text = await response.text();
@@ -159,8 +177,28 @@ export interface ApplicantRow {
   readonly travelMiles: number;
 }
 
+/**
+ * The vocabulary the pickers render from.
+ *
+ * A tight timeout, because of where this is called: the marketing pages ask
+ * for it and fall back to a bundled copy when it does not answer, so the cost
+ * of giving up early is a taxonomy that is a deploy old, and the cost of
+ * waiting is the page.
+ *
+ * That fallback existed and still could not save the build. `/` is prerendered
+ * at build time on Vercel, `fetch` had no timeout, and the build sandbox drops
+ * packets to an unreachable API rather than refusing them -- so the call sat
+ * there while Next's 60-second export limit passed, three times, and the
+ * deployment failed on a page that was designed to render without the API at
+ * all. Locally the same call fails in microseconds because a closed port on
+ * loopback refuses immediately, which is why every local build was green.
+ */
 export const taxonomy = () =>
-  apiFetch<Taxonomy>("/v1/taxonomy", { authenticated: false, revalidate: 3600 });
+  apiFetch<Taxonomy>("/v1/taxonomy", {
+    authenticated: false,
+    revalidate: 3600,
+    timeoutMs: 2_500,
+  });
 
 export const me = () => apiFetch<{ user: PublicUser; session: { mfa: boolean } }>("/v1/me");
 
@@ -169,3 +207,49 @@ export const gig = (id: string) =>
 
 export const applicants = (id: string) =>
   apiFetch<{ applications: ApplicantRow[] }>(`/v1/gigs/${id}/applications`);
+
+/**
+ * A vendor's published profile, read without a session.
+ *
+ * Mirrors the API's `PublicVendorProfile` projection exactly. That projection
+ * is built by naming the fields that may be public rather than by deleting the
+ * ones that may not, which is why this interface can be a straight copy: a
+ * field added to the stored profile does not appear here, or on the page,
+ * until somebody adds it in both places on purpose.
+ *
+ * `ratingAvg` is optional and absent on every profile today, because no
+ * reviews exist yet. The page renders nothing where a rating would go rather
+ * than a placeholder score.
+ */
+export interface PublicVendorProfile {
+  readonly slug: string;
+  readonly businessName: string;
+  readonly headline: string;
+  readonly about: string;
+  readonly displayName: string;
+  readonly specialties: string[];
+  readonly culturalTags: string[];
+  readonly languages: string[];
+  readonly metroId?: string;
+  readonly startingRateCents: number;
+  readonly yearsExperience: number;
+  readonly travelRadiusMiles?: number;
+  readonly profileAssetId?: string;
+  readonly portfolioAssetIds: string[];
+  readonly publishedAt: string;
+  readonly ratingAvg?: number;
+  readonly ratingCount: number;
+  readonly completedGigs: number;
+}
+
+/**
+ * Cached for five minutes rather than not at all. This is an anonymous,
+ * crawlable page whose content changes when a vendor edits it, so a short
+ * shared cache is right: it absorbs the traffic a shared WhatsApp link
+ * produces without making an edit take an hour to appear.
+ */
+export const vendorProfile = (slug: string) =>
+  apiFetch<{ vendor: PublicVendorProfile }>(`/v1/vendors/${encodeURIComponent(slug)}`, {
+    authenticated: false,
+    revalidate: 300,
+  });

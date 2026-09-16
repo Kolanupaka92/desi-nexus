@@ -3,6 +3,9 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { METROS, SPECIALITIES, metroBySlug, specialityBySlug } from "@/content/seo";
 import { label } from "@/lib/format";
+import { Breadcrumbs } from "@/components/site/Breadcrumbs";
+import { JsonLd } from "@/components/site/JsonLd";
+import { CTASection } from "@/components/site/CTASection";
 
 /**
  * The page a search actually lands on: one speciality, in one metro.
@@ -12,6 +15,8 @@ import { label } from "@/lib/format";
  * visitor is worse than one that is a day stale.
  */
 export const dynamic = "force-static";
+
+const SITE = process.env.NEXT_PUBLIC_SITE_URL ?? "https://desi-nexus.com";
 
 export function generateStaticParams() {
   return METROS.flatMap((metro) =>
@@ -64,15 +69,16 @@ export default async function HirePage({ params }: Params) {
 
   return (
     <>
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
-      />
+      <JsonLd data={jsonLd} />
 
-      <nav className="crumbs faint" aria-label="Breadcrumb">
-        <Link href="/hire">Hire</Link> › <Link href={`/hire/${metro.slug}`}>{metro.name}</Link> ›{" "}
-        <span>{speciality.noun}</span>
-      </nav>
+      <Breadcrumbs
+        base={SITE}
+        crumbs={[
+          { label: "Hire", href: "/hire" },
+          { label: metro.name, href: `/hire/${metro.slug}` },
+          { label: speciality.noun },
+        ]}
+      />
 
       <section style={{ padding: "36px 0 8px", maxWidth: 760 }}>
         <span className="pill">{metro.name} · now booking</span>
@@ -81,7 +87,7 @@ export default async function HirePage({ params }: Params) {
           every word including the preposition -- "Makeup Artist In Dallas-Fort
           Worth" -- and the nouns are already written to read correctly inline.
         */}
-        <h1 style={{ marginTop: 16, fontSize: "2.4rem" }}>
+        <h1 style={{ marginTop: "var(--space-4)" }}>
           South Asian {speciality.noun} in {metro.name}
         </h1>
         <p className="lede">{speciality.does}</p>
@@ -112,19 +118,22 @@ export default async function HirePage({ params }: Params) {
         </p>
       </div>
 
-      <div className="card accent-card" style={{ marginTop: 18 }}>
-        <h3 style={{ marginTop: 0 }}>Post the function, not a job ad</h3>
-        <p>
-          Tell us the actual occasion and we rank {metro.name} {speciality.noun}s on cultural fit
-          first, then distance, budget, language and track record &mdash; and show you why each one
-          ranked where they did. Most briefs are matched within the hour.
-        </p>
-        <Link href="/gigs/new" className="btn accent">
-          Post a gig
-        </Link>{" "}
-        <Link href="/register" className="btn secondary">
-          Join as a vendor
-        </Link>
+      {/*
+        "Most briefs are matched within the hour" used to close this page. It
+        is a statistic, nobody has measured it, and no booking has settled on
+        this platform yet -- so it was a number invented to sound confident,
+        which is the one thing a marketplace asking for a deposit cannot afford
+        to be caught doing. What replaces it is the same promise stated as a
+        mechanism, which is true and checkable on the results page.
+      */}
+      <div style={{ marginTop: 32 }}>
+        <CTASection
+          eyebrow="Post the function, not a job ad"
+          title={`Tell us the occasion and the ${metro.name} shortlist ranks itself.`}
+          body={`${metro.name} ${speciality.noun}s are ranked on cultural fit first, then distance, budget, language and track record — and every applicant arrives with the breakdown that produced their score. Placement is not for sale.`}
+          primary={{ href: "/gigs/new", label: "Post a brief" }}
+          secondary={{ href: "/register", label: "Join as a vendor" }}
+        />
       </div>
 
       <section style={{ marginTop: 28 }}>
