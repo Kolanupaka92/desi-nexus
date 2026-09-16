@@ -76,10 +76,18 @@ export async function createTestSchema(schema: string): Promise<Database> {
     connectionString: TEST_DATABASE_URL,
     searchPath: [schema, "public"],
   });
-  // 001 and 002 create the tables and reference rows. 003 grants privileges on
-  // `public` to the shared application role and is verified separately.
-  await db.query(migration("001_init.sql"));
-  await db.query(migration("002_seed_reference_data.sql"));
+  // The schema migrations, in order. Every file that changes tables or
+  // reference rows belongs here, because the repositories write whatever the
+  // current schema has: leaving one out makes every profile save in every
+  // other test file fail on a column that does not exist yet.
+  //
+  // 003 and 004 are deliberately not in this list. They grant privileges and
+  // attach policies to cluster-wide roles rather than shaping this schema's
+  // tables, and postgres.rls.test.ts applies them itself because exercising
+  // them is that file's whole purpose.
+  for (const file of ["001_init.sql", "002_seed_reference_data.sql", "005_vendor_public_profiles.sql"]) {
+    await db.query(migration(file));
+  }
   return db;
 }
 

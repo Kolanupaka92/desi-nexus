@@ -88,6 +88,20 @@ export interface CrewProfile {
   medianResponseMinutes?: number;
   portfolioAssetIds: string[];
   stripeAccountId?: string;
+
+  // --- The public profile. All optional: a vendor who never publishes has
+  // none of it, which is the default and a perfectly good way to use the
+  // platform. See publishability() for what has to be present before
+  // publishedAt may be set.
+  /** The public address, e.g. `anjali-studio-frisco`. Claimable before publishing. */
+  slug?: string;
+  /** When the vendor opted this profile into being public. Absent means private. */
+  publishedAt?: string;
+  businessName?: string;
+  headline?: string;
+  about?: string;
+  /** The one image a card and a link preview use, out of portfolioAssetIds. */
+  profileAssetId?: string;
 }
 
 export interface CreatorProfile {
@@ -193,6 +207,137 @@ export function validateCrewProfile(input: Partial<CrewProfile>): void {
   if (typeof input.startingRateCents !== "number" || input.startingRateCents <= 0) {
     throw new ValidationError("startingRateCents", "a starting rate above zero is required");
   }
+}
+
+/** A slug the public URL can carry, derived from what the vendor typed. */
+export function toSlug(input: string): string {
+  return input
+    .normalize("NFKD")
+    // Strip marks separately from the ASCII filter so that "Jhansi" survives
+    // being typed as "Jhānsi" rather than losing the vowel entirely.
+    .replace(/\p{M}+/gu, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 60)
+    .replace(/-+$/g, "");
+}
+
+/** Fields a vendor must fill in before their profile may be made public. */
+export const PUBLISH_REQUIREMENTS = [
+  "slug",
+  "businessName",
+  "headline",
+  "about",
+  // `profileAssetId` belongs here and is deliberately absent: nothing can
+  // create a portfolio asset yet, so requiring one would make publishing
+  // unreachable. It joins this list with the upload endpoint.
+] as const;
+
+export type PublishRequirement = (typeof PUBLISH_REQUIREMENTS)[number];
+
+/**
+ * Whether a profile may be published, and what is missing if not.
+ *
+ * Returning the whole list rather than throwing on the first gap is
+ * deliberate: a vendor filling in a profile wants to be told everything left
+ * to do, not sent round the loop once per field.
+ *
+ * The bar is not bureaucracy. A published profile is an indexable page and a
+ * link someone forwards to family; one with no picture and no description
+ * teaches a visitor that the marketplace is empty, and teaches a search engine
+ * that the site is thin. Both are expensive to undo.
+ */
+export function publishability(profile: CrewProfile): {
+  ok: boolean;
+  missing: PublishRequirement[];
+} {
+  const missing = PUBLISH_REQUIREMENTS.filter((field) => {
+    const value = profile[field];
+    return typeof value !== "string" || value.trim().length === 0;
+  });
+  return { ok: missing.length === 0, missing };
+}
+
+/**
+ * What a logged-out visitor is allowed to see.
+ *
+ * Built by naming every field rather than by deleting the private ones from
+ * the record. Subtraction fails open: the next column added to CrewProfile
+ * would be public by default, and the one after that, until something like a
+ * home address or a payout account has leaked. Addition fails closed, which
+ * for an anonymous endpoint is the only acceptable direction.
+ *
+ * Specifically withheld, and why:
+ *  - `unavailableDates` -- a vendor's calendar is not public information, and
+ *    read across a season it says a great deal about their business.
+ *  - the user's `homeBase` -- for a great many vendors here that is their
+ *    house. The service area a visitor needs is answered by the metro and the
+ *    travel radius, neither of which is a coordinate.
+ *  - `stripeAccountId`, and anything else on the payout path.
+ *  - contact details. The platform is how a host reaches a vendor; publishing
+ *    an email would route the booking around the escrow that protects both.
+ */
+export interface PublicVendorProfile {
+  readonly slug: string;
+  readonly businessName: string;
+  readonly headline: string;
+  readonly about: string;
+  readonly displayName: string;
+  readonly specialties: CrewSpecialty[];
+  readonly culturalTags: CulturalTag[];
+  readonly languages: string[];
+  readonly metroId?: string;
+  readonly startingRateCents: Cents;
+  readonly yearsExperience: number;
+  /** How far they travel, which is the public half of a service area. */
+  readonly travelRadiusMiles?: number;
+  /** Absent until the vendor has a picture to choose; see PUBLISH_REQUIREMENTS. */
+  readonly profileAssetId?: string;
+  readonly portfolioAssetIds: string[];
+  readonly publishedAt: string;
+  /** Reputation only once it is real; see the note below. */
+  readonly ratingAvg?: number;
+  readonly ratingCount: number;
+  readonly completedGigs: number;
+}
+
+export function toPublicVendorProfile(
+  profile: CrewProfile,
+  user: Pick<BaseUser, "displayName" | "languages" | "metroId">,
+): PublicVendorProfile | undefined {
+  // Not published is not found. Callers turn this into a 404 rather than a
+  // 403, so that an unpublished slug does not confirm it exists.
+  if (!profile.publishedAt) return undefined;
+  const { ok } = publishability(profile);
+  if (!ok) return undefined;
+
+  return {
+    slug: profile.slug as string,
+    businessName: profile.businessName as string,
+    headline: profile.headline as string,
+    about: profile.about as string,
+    displayName: user.displayName,
+    specialties: profile.specialties,
+    culturalTags: profile.culturalTags,
+    languages: user.languages,
+    ...(user.metroId ? { metroId: user.metroId } : {}),
+    startingRateCents: profile.startingRateCents,
+    yearsExperience: profile.yearsExperience,
+    ...(profile.travelPolicy?.maxRadiusMiles === undefined
+      ? {}
+      : { travelRadiusMiles: profile.travelPolicy.maxRadiusMiles }),
+    ...(profile.profileAssetId ? { profileAssetId: profile.profileAssetId } : {}),
+    portfolioAssetIds: profile.portfolioAssetIds,
+    publishedAt: profile.publishedAt,
+    // No reviews exist yet, so ratingAvg is absent on every profile today.
+    // Passing it through rather than inventing a placeholder means the page
+    // shows nothing where a rating would go, which is honest; a default of
+    // "5.0" or "New" dressed up as a score would not be.
+    ...(profile.ratingAvg === undefined ? {} : { ratingAvg: profile.ratingAvg }),
+    ratingCount: profile.ratingCount,
+    completedGigs: profile.completedGigs,
+  };
 }
 
 /**

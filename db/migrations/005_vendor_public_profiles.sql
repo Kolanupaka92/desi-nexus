@@ -36,10 +36,16 @@ ALTER TABLE crew_profiles
     -- One line under the name. Short on purpose: it has to survive a phone.
     ADD COLUMN headline          TEXT CHECK (headline IS NULL OR length(trim(headline)) BETWEEN 10 AND 120),
     ADD COLUMN about             TEXT CHECK (about IS NULL OR length(trim(about)) BETWEEN 40 AND 2000),
-    -- The single image a card and a link preview use. Portfolio assets are a
-    -- separate, ordered set; this is the one that has to exist before a
-    -- profile may be published, because a vendor card with no picture is the
-    -- reason a marketplace looks empty.
+    -- The single image a card and a link preview use, chosen out of the
+    -- vendor's portfolio assets.
+    --
+    -- Deliberately NOT in the publishable CHECK below, though it belongs
+    -- there. portfolio_assets has no endpoint that can create a row -- the
+    -- table is readable and unwritable -- so requiring a photo to publish
+    -- would make publishing unreachable through the API, which is the same
+    -- shape as the id_verified gap that stopped any booking completing.
+    -- The column lands now because the projection and the store need it; the
+    -- requirement lands with the upload endpoint that can satisfy it.
     ADD COLUMN profile_asset_id  UUID REFERENCES portfolio_assets(id) ON DELETE SET NULL;
 
 -- Slug uniqueness is the column's own UNIQUE above, and it is deliberately
@@ -72,7 +78,6 @@ ALTER TABLE crew_profiles
             AND business_name IS NOT NULL
             AND headline IS NOT NULL
             AND about IS NOT NULL
-            AND profile_asset_id IS NOT NULL
         )
     );
 

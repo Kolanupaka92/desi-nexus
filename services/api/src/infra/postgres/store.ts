@@ -199,11 +199,13 @@ class PgProfiles implements ProfileRepository {
              free_radius_miles, per_mile_cents, max_radius_miles,
              overnight_threshold_miles, overnight_cents,
              rating_avg, rating_count, completed_gigs, median_response_minutes,
-             stripe_account_id)
+             stripe_account_id,
+             slug, business_name, headline, about, profile_asset_id)
          VALUES ($1,$2,$3,
                  COALESCE($4, 25), COALESCE($5, 90), COALESCE($6, 300),
                  COALESCE($7, 120), COALESCE($8, 18000),
-                 $9,$10,$11,$12,$13)
+                 $9,$10,$11,$12,$13,
+                 $14,$15,$16,$17,$18)
          -- Only the columns a vendor edits. Reputation and payout state are the
          -- platform's to write, and this statement used to overwrite them from
          -- whatever the caller happened to construct: POST /v1/profiles/crew
@@ -221,7 +223,17 @@ class PgProfiles implements ProfileRepository {
            per_mile_cents = EXCLUDED.per_mile_cents,
            max_radius_miles = EXCLUDED.max_radius_miles,
            overnight_threshold_miles = EXCLUDED.overnight_threshold_miles,
-           overnight_cents = EXCLUDED.overnight_cents`,
+           overnight_cents = EXCLUDED.overnight_cents,
+           -- The public profile's own fields are the vendor's to edit, so
+           -- unlike published_at -- which only setPublished writes -- they do
+           -- belong here. An edit that blanks a required field cannot silently
+           -- unpublish a live page: the crew_profiles_publishable constraint
+           -- refuses it instead.
+           slug = EXCLUDED.slug,
+           business_name = EXCLUDED.business_name,
+           headline = EXCLUDED.headline,
+           about = EXCLUDED.about,
+           profile_asset_id = EXCLUDED.profile_asset_id`,
         [
           profile.userId,
           profile.startingRateCents,
@@ -236,6 +248,11 @@ class PgProfiles implements ProfileRepository {
           profile.completedGigs,
           profile.medianResponseMinutes ?? null,
           profile.stripeAccountId ?? null,
+          profile.slug ?? null,
+          profile.businessName ?? null,
+          profile.headline ?? null,
+          profile.about ?? null,
+          profile.profileAssetId ?? null,
         ],
       );
 
@@ -297,6 +314,26 @@ class PgProfiles implements ProfileRepository {
       userId,
       stripeAccountId,
     ]);
+  }
+
+  async setPublished(userId: string, publishedAt: string | undefined): Promise<void> {
+    // crew_profiles_publishable refuses this when a required field is blank,
+    // so an incomplete profile cannot be made public even by a caller that
+    // skipped the service-level check.
+    await this.db.query(`UPDATE crew_profiles SET published_at = $2 WHERE user_id = $1`, [
+      userId,
+      publishedAt ?? null,
+    ]);
+  }
+
+  async publishedBySlug(slug: string): Promise<CrewProfile | undefined> {
+    const rows = await this.db.query<{ user_id: string }>(
+      `SELECT user_id FROM crew_profiles WHERE slug = $1 AND published_at IS NOT NULL`,
+      [slug],
+    );
+    const found = rows[0];
+    if (!found) return undefined;
+    return loadCrew(this.db, found.user_id);
   }
 
   async putCreator(profile: CreatorProfile): Promise<CreatorProfile> {
@@ -417,6 +454,12 @@ async function loadCrew(db: Database, userId: string): Promise<CrewProfile | und
       ? {}
       : { medianResponseMinutes: num(row.median_response_minutes) }),
     ...(row.stripe_account_id ? { stripeAccountId: row.stripe_account_id as string } : {}),
+    ...(row.slug ? { slug: row.slug as string } : {}),
+    ...(row.published_at ? { publishedAt: iso(row.published_at) } : {}),
+    ...(row.business_name ? { businessName: row.business_name as string } : {}),
+    ...(row.headline ? { headline: row.headline as string } : {}),
+    ...(row.about ? { about: row.about as string } : {}),
+    ...(row.profile_asset_id ? { profileAssetId: row.profile_asset_id as string } : {}),
   };
 }
 
