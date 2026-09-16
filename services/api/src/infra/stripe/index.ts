@@ -62,8 +62,30 @@ export interface ConnectAccountRef {
   readonly onboardingUrl?: string;
 }
 
+/**
+ * A Stripe Identity verification session.
+ *
+ * The platform never sees the document. The vendor is sent to Stripe's hosted
+ * flow, Stripe checks the ID, and the outcome comes back as a signed webhook.
+ * That is the whole reason to use it: the same PCI-style argument as payments,
+ * applied to government identity documents -- none of them touch this service.
+ */
+export interface IdentitySessionRef {
+  readonly id: string;
+  /** Stripe's hosted page. The vendor is redirected here to submit their ID. */
+  readonly url: string;
+  readonly status: "requires_input" | "processing" | "verified" | "canceled";
+}
+
 export interface StripeGateway {
   createConnectAccount(input: { userId: string; email: string }): Promise<ConnectAccountRef>;
+  /**
+   * Start identity verification for a user.
+   *
+   * `userId` is carried in the session's metadata so the webhook can find the
+   * user again: the callback is not a session, so it has nothing else to go on.
+   */
+  createIdentitySession(input: { userId: string; returnUrl?: string }): Promise<IdentitySessionRef>;
   getConnectAccount(accountId: string): Promise<ConnectAccountRef>;
   createPaymentIntent(input: CreateIntentInput): Promise<PaymentIntentRef>;
   createTransfer(input: {

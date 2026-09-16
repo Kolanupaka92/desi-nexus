@@ -7,6 +7,7 @@
  */
 import { randomUUID } from "node:crypto";
 import type {
+  IdentitySessionRef,
   ConnectAccountRef,
   CreateIntentInput,
   PaymentIntentRef,
@@ -43,6 +44,31 @@ export class FakeStripeGateway implements StripeGateway {
   completeOnboarding(accountId: string): void {
     const account = this.accounts.get(accountId);
     if (account) this.accounts.set(accountId, { ...account, payoutsEnabled: true });
+  }
+
+  readonly identitySessions = new Map<string, IdentitySessionRef & { userId: string }>();
+
+  async createIdentitySession(input: { userId: string; returnUrl?: string }): Promise<IdentitySessionRef> {
+    const session = {
+      id: `vs_${input.userId}`,
+      url: `https://verify.stripe.test/start/${input.userId}`,
+      status: "requires_input" as const,
+      userId: input.userId,
+    };
+    this.identitySessions.set(session.id, session);
+    return { id: session.id, url: session.url, status: session.status };
+  }
+
+  /**
+   * Stands in for the vendor completing Stripe's hosted flow.
+   *
+   * It only moves the fake's own record. Promotion still has to arrive as a
+   * webhook, because that is the only path the service trusts -- a test that
+   * promoted the user directly would prove nothing about the real one.
+   */
+  completeIdentityVerification(sessionId: string): void {
+    const session = this.identitySessions.get(sessionId);
+    if (session) this.identitySessions.set(sessionId, { ...session, status: "verified" });
   }
 
   async createPaymentIntent(input: CreateIntentInput): Promise<PaymentIntentRef> {
