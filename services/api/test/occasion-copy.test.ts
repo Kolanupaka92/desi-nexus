@@ -102,10 +102,13 @@ function readOccasions(): Array<{ key: string; description: string }> {
   try {
     source = readFileSync(copyPath, "utf8");
   } catch (error) {
+    // `cause` is not decoration: without it the original ENOENT's stack is gone
+    // and all a reader gets is this throw site, which is the one place the
+    // problem is not. eslint's preserve-caught-error rule is what caught this.
     throw new Error(
-      `Could not read the occasion copy at ${copyPath}. ` +
-        "This path is resolved relative to the COMPILED location (dist/test/), " +
-        `not the source tree. Original error: ${(error as Error).message}`,
+      `Could not read the occasion copy at ${copyPath}. This path is resolved ` +
+        "relative to the COMPILED location (dist/test/), not the source tree.",
+      { cause: error },
     );
   }
   const out: Array<{ key: string; description: string }> = [];
