@@ -11,7 +11,7 @@ import { Motif, motifFor, type MotifName } from "@/components/site/Motif";
  * One page per occasion group: what this kind of function needs, and who works
  * it.
  *
- * Five of these, not forty. Crossing the five groups with the eight metros
+ * Five of these, not forty. Crossing the five groups with the ten metros
  * would generate forty pages whose only difference is a place name, which is
  * the definition of a doorway page and is treated as one. The metro dimension
  * already has its own pages, written around what is actually different about
@@ -67,7 +67,7 @@ export default async function PlanPage({ params }: Params) {
 
       <section className="plan-hero">
         <div>
-          <span className="pill">Texas · {events.length} functions</span>
+          <span className="pill">{events.length} functions</span>
           <h1 style={{ marginTop: "var(--space-4)" }}>{plan.title}</h1>
           <p className="lede">{plan.lede}</p>
         </div>

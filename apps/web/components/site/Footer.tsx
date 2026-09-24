@@ -41,7 +41,7 @@ export function Footer() {
             <Logo reversed />
             <p>
               Makeup artists, photographers, henna artists, pandits, decorators and creators for
-              South Asian events across Texas — matched on the functions they have actually
+              South Asian events in Texas, North Carolina and California — matched on the functions they
               worked, and paid through escrow.
             </p>
           </div>
@@ -102,11 +102,14 @@ export function Footer() {
         </div>
 
         <div className={styles.base}>
-          <p>
-            Serving Dallas-Fort Worth, Greater Houston, Austin, San Antonio, the Rio Grande
-            Valley, El Paso, Corpus Christi and Lubbock.
-          </p>
-          <p>Deposits are held in escrow and released after the event. Pilot region: Texas.</p>
+          {/*
+            Derived from METROS, not typed out. The hard-coded version listed
+            the Rio Grande Valley, El Paso, Corpus Christi and Lubbock on every
+            page of the site for as long as it took someone to notice they were
+            no longer served -- and nothing would have noticed.
+          */}
+          <p>Serving {METROS.map((metro) => metro.name).join(", ")}.</p>
+          <p>Deposits are held in escrow and released after the event.</p>
         </div>
       </Shell>
     </footer>

@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { METROS, SPECIALITIES, metroBySlug, specialityBySlug } from "@/content/seo";
+import { METROS, SPECIALITIES, STATE_NAMES, metroBySlug, specialityBySlug } from "@/content/seo";
 import { label } from "@/lib/format";
 import { Breadcrumbs } from "@/components/site/Breadcrumbs";
 import { JsonLd } from "@/components/site/JsonLd";
@@ -51,7 +51,7 @@ export default async function HirePage({ params }: Params) {
 
   // Described as a Service rather than a LocalBusiness: DESI-NEXUS is the
   // marketplace, not the vendor, and claiming to be a local business with a
-  // storefront in eight metros at once is the kind of thing that gets
+  // storefront in ten metros at once is the kind of thing that gets
   // structured data ignored entirely.
   const jsonLd = {
     "@context": "https://schema.org",
@@ -61,7 +61,7 @@ export default async function HirePage({ params }: Params) {
     areaServed: metro.cities.map((city) => ({
       "@type": "City",
       name: city,
-      containedInPlace: { "@type": "State", name: "Texas" },
+      containedInPlace: { "@type": "State", name: STATE_NAMES[metro.state] },
     })),
     description: speciality.does,
   };

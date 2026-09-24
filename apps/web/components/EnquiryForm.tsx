@@ -112,7 +112,7 @@ export function EnquiryForm({
               Where <span className="optional">optional</span>
             </label>
             <select id="enq-metro" name="metroCode" defaultValue="">
-              <option value="">Somewhere else in Texas</option>
+              <option value="">Somewhere else</option>
               {metros.map(([code, name]) => (
                 <option key={code} value={code}>
                   {name}

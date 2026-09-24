@@ -25,7 +25,7 @@ export const metadata: Metadata = {
     template: `%s · ${BRAND.name}`,
   },
   description:
-    "Book verified makeup artists, photographers, henna artists, pandits and creators for South Asian events across Dallas-Fort Worth, Houston, Austin and San Antonio.",
+    "Book verified makeup artists, photographers, henna artists, pandits and creators for South Asian events across Texas, North Carolina and California.",
   openGraph: {
     title: `${BRAND.name} — ${BRAND.tagline}`,
     description:
@@ -63,7 +63,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
                 name: BRAND.name,
                 url: SITE,
                 description:
-                  "A marketplace connecting South Asian event hosts in Texas with the crew and creators who work their events.",
+                  "A marketplace connecting South Asian event hosts in Texas, North Carolina and California with the crew and creators who work their events.",
                 areaServed: {
                   "@type": "State",
                   name: "Texas",

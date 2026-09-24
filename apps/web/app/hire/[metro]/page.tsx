@@ -82,7 +82,7 @@ export default async function MetroPage({ params }: Params) {
       </div>
 
       <section style={{ marginTop: 28 }}>
-        <h3 className="faint">Other Texas metros</h3>
+        <h3 className="faint">Other metros</h3>
         <ul className="tags" style={{ marginTop: 10 }}>
           {METROS.filter((other) => other.slug !== metro.slug).map((other) => (
             <li key={other.slug}>

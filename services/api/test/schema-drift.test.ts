@@ -11,12 +11,18 @@ import { fileURLToPath } from "node:url";
 import { dirname, resolve } from "node:path";
 import { CREW_SPECIALTIES, CULTURAL_TAGS, EVENT_TYPES, LANGUAGES } from "../src/domain/taxonomy.js";
 import { GIG_STATES } from "../src/domain/gig.js";
-import { TEXAS_METROS } from "../src/domain/geo.js";
+import { SERVICE_METROS } from "../src/domain/geo.js";
 
 const here = dirname(fileURLToPath(import.meta.url));
 // dist/test -> up to services/api, then to the repo's desi-nexus root.
 const seedPath = resolve(here, "../../../../db/migrations/002_seed_reference_data.sql");
 const seed = readFileSync(seedPath, "utf8");
+// The footprint moved out of 002 alone when the service grew past Texas: 008
+// adds the North Carolina and California metros and deactivates four Texas
+// ones. Reading only 002 would report six metros missing from the database and
+// four unknown to the code, all six and four of them wrong.
+const footprintPath = resolve(here, "../../../../db/migrations/008_metro_footprint.sql");
+const footprint = readFileSync(footprintPath, "utf8");
 
 /** Pull the first column of every VALUES tuple in one INSERT block. */
 function seededCodes(table: string): Set<string> {
@@ -50,12 +56,46 @@ test("every language the service accepts exists as a seeded row", () => {
   assertSameSet("languages", LANGUAGES, seededCodes("languages"));
 });
 
-test("every pilot metro exists as a seeded row", () => {
+/**
+ * The metros the database considers live, across both migrations.
+ *
+ * 002 seeds eight, 008 adds six and marks four inactive. `is_active` has been
+ * on the table since 001 and nothing read it; this is the first thing that
+ * does, which is the only reason the column is worth keeping.
+ *
+ * Deactivating rather than deleting is deliberate -- users.metro_code and
+ * gigs.metro_code both reference metros(code) with no ON DELETE clause, so a
+ * DELETE fails on the first row pointing at it -- and it means "seeded" and
+ * "served" are no longer the same set. This computes the second.
+ */
+function activeMetroCodes(): Set<string> {
+  const live = seededCodes("metros");
+  for (const match of footprint.matchAll(/\(\s*'([a-z0-9_]+)',\s*'[^']+',\s*ST_MakePoint/g)) {
+    live.add(match[1] as string);
+  }
+  const off = footprint.match(/UPDATE metros SET is_active = FALSE WHERE code IN \(([^)]*)\)/);
+  assert.ok(off, "008 no longer deactivates any metro; this parser needs revisiting");
+  for (const code of (off[1] as string).matchAll(/'([a-z0-9_]+)'/g)) {
+    live.delete(code[1] as string);
+  }
+  return live;
+}
+
+test("every served metro exists as an active row, and every active row is served", () => {
   assertSameSet(
     "metros",
-    TEXAS_METROS.map((metro) => metro.id),
-    seededCodes("metros"),
+    SERVICE_METROS.map((metro) => metro.id),
+    activeMetroCodes(),
   );
+});
+
+test("the deactivated metros are still present as rows", () => {
+  // Their foreign keys have to keep resolving. If a later migration ever
+  // deletes them instead, this says so before a gig in El Paso 500s.
+  const seeded = seededCodes("metros");
+  for (const code of ["elp", "rgv", "cc", "lbb"]) {
+    assert.ok(seeded.has(code), `${code} was removed from the seed rather than deactivated`);
+  }
 });
 
 test("the tag-affinity table only references tags that exist", () => {

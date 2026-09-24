@@ -1,14 +1,14 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { METROS, PLANS, SPECIALITIES } from "@/content/seo";
+import { METROS, PLANS, SPECIALITIES, STATE_NAMES } from "@/content/seo";
 import { CTASection } from "@/components/site/CTASection";
 
 export const dynamic = "force-static";
 
 export const metadata: Metadata = {
-  title: "Hire South Asian event crew in Texas",
+  title: "Hire South Asian event crew in Texas, North Carolina and California",
   description:
-    "Verified makeup artists, photographers, henna artists, pandits, DJs and decorators for South Asian functions across eight Texas metros.",
+    "Verified makeup artists, photographers, henna artists, pandits, DJs and decorators for South Asian functions across ten metros in Texas, North Carolina and California.",
   alternates: { canonical: "/hire" },
 };
 
@@ -16,28 +16,50 @@ export default function HireIndexPage() {
   return (
     <div className="shell">
       <section style={{ padding: "40px 0 8px", maxWidth: 760 }}>
-        <span className="pill">Texas pilot</span>
+        <span className="pill">Ten metros, three states</span>
         <h1 style={{ marginTop: "var(--space-4)" }}>Hire crew who know the function</h1>
+        {/*
+          Both numbers are counted, not typed. "Eight metros" survived the
+          footprint going from eight Texas metros to ten across three states,
+          because a sentence cannot fail. So can "seventeen specialities" the
+          next time the list changes.
+        */}
         <p className="lede">
-          Eight metros, seventeen specialities, and a match engine that ranks cultural fit above
-          everything else &mdash; because a MUA who does South Indian bridal is not
-          interchangeable with one who does Punjabi Sikh bridal.
+          {METROS.length} metros, {SPECIALITIES.length} specialities, and a match engine that
+          ranks whether they have worked your function above everything else &mdash; because a
+          MUA who has done forty half-saree functions is not interchangeable with one who has
+          done none.
         </p>
       </section>
 
+      {/*
+        Grouped by state rather than one flat list of ten.
+        A visitor in Cary scanning a single column headed "By metro" has to read
+        past seven places they will never book in to find theirs. The grouping
+        is derived from the data, so adding a state is a content change.
+      */}
       <section style={{ marginTop: 20 }}>
         <h2>By metro</h2>
-        <div className="grid two" style={{ marginTop: 12 }}>
-          {METROS.map((metro) => (
-            <Link key={metro.slug} href={`/hire/${metro.slug}`} className="card link-card">
-              <strong>{metro.name}</strong>
-              <p className="faint" style={{ margin: "6px 0 0" }}>
-                {metro.cities.slice(0, 4).join(", ")}
-                {metro.cities.length > 4 ? " and more" : ""}
-              </p>
-            </Link>
-          ))}
-        </div>
+        {(["TX", "NC", "CA"] as const).map((state) => {
+          const inState = METROS.filter((metro) => metro.state === state);
+          if (inState.length === 0) return null;
+          return (
+            <div key={state} style={{ marginTop: 16 }}>
+              <h3 className="faint">{STATE_NAMES[state]}</h3>
+              <div className="grid two" style={{ marginTop: 10 }}>
+                {inState.map((metro) => (
+                  <Link key={metro.slug} href={`/hire/${metro.slug}`} className="card link-card">
+                    <strong>{metro.name}</strong>
+                    <p className="faint" style={{ margin: "6px 0 0" }}>
+                      {metro.cities.slice(0, 4).join(", ")}
+                      {metro.cities.length > 4 ? " and more" : ""}
+                    </p>
+                  </Link>
+                ))}
+              </div>
+            </div>
+          );
+        })}
       </section>
 
       <section style={{ marginTop: 28 }}>
@@ -68,7 +90,7 @@ export default function HireIndexPage() {
           ))}
         </ul>
         <p className="faint" style={{ marginTop: 10 }}>
-          Links open the Dallas-Fort Worth page; every speciality is available in all eight metros.
+          Links open the Dallas-Fort Worth page; every speciality is available in all {METROS.length} metros.
         </p>
       </section>
 

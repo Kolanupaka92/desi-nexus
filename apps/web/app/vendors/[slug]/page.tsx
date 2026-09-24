@@ -3,7 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ApiCallError, vendorProfile, type PublicVendorProfile } from "@/lib/api";
 import { label, usd } from "@/lib/format";
-import { METROS } from "@/content/seo";
+import { METROS, STATE_NAMES } from "@/content/seo";
 import { Breadcrumbs } from "@/components/site/Breadcrumbs";
 import { CTASection } from "@/components/site/CTASection";
 import { JsonLd } from "@/components/site/JsonLd";
@@ -87,7 +87,7 @@ export default async function VendorPage({ params }: Params) {
           // Every field below is read off the profile. Nothing is defaulted:
           // an absent metro means no areaServed, not a guessed one.
           ...(metro
-            ? { areaServed: { "@type": "City", name: metro.name, containedInPlace: { "@type": "State", name: "Texas" } } }
+            ? { areaServed: { "@type": "City", name: metro.name, containedInPlace: { "@type": "State", name: STATE_NAMES[metro.state] } } }
             : {}),
           ...(vendor.languages.length > 0 ? { knowsLanguage: vendor.languages } : {}),
           ...(vendor.specialties.length > 0

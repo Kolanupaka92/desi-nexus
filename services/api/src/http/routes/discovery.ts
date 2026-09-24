@@ -21,7 +21,7 @@ import {
 } from "../../domain/users.js";
 import { rankCandidates, type Candidate, type EventExperience } from "../../domain/matching.js";
 import { CREW_SPECIALTIES, CULTURAL_TAGS, EVENT_GROUPS, LANGUAGES, CUSTOMARY_CREW, isEventType } from "../../domain/taxonomy.js";
-import { TEXAS_METROS, quoteTravel } from "../../domain/geo.js";
+import { SERVICE_METROS, quoteTravel } from "../../domain/geo.js";
 import { isPgError, UNIQUE_VIOLATION } from "../../infra/postgres/db.js";
 import type { AppDeps } from "../../app.js";
 
@@ -90,7 +90,7 @@ export function registerDiscoveryRoutes(router: Router, deps: AppDeps): void {
       crewSpecialties: CREW_SPECIALTIES,
       culturalTags: CULTURAL_TAGS,
       languages: LANGUAGES,
-      metros: TEXAS_METROS,
+      metros: SERVICE_METROS,
     },
     headers: { "cache-control": "public, max-age=3600" },
   }));

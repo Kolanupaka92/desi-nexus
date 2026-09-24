@@ -33,5 +33,5 @@ export const BRAND = {
    */
   wordmark: ["UTSAV"] as const,
   /** One line, for meta descriptions and the footer. */
-  tagline: "South Asian event talent across Texas",
+  tagline: "South Asian event talent in Texas, North Carolina and California",
 } as const;

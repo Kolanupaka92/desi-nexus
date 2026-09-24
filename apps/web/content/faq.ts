@@ -37,7 +37,7 @@ export const HOME_FAQ: readonly QandA[] = [
     a: "Because a Sangeet is not a reception and a Griha Pravesham is not a birthday, and the crew who work them well are not the same people. Vendors tag the specific functions they have actually worked, and the match engine weights that above everything else.",
   },
   {
-    q: "Which parts of Texas is this available in?",
-    a: "Dallas-Fort Worth, Greater Houston, Austin, San Antonio, the Rio Grande Valley, El Paso, Corpus Christi and Lubbock. Texas is the pilot region; vendors regularly travel between metros, and when they do the drive is priced into the quote.",
+    q: "Where is this available?",
+    a: "Texas — Dallas-Fort Worth, Greater Houston, Austin and San Antonio. North Carolina — Raleigh-Durham, Charlotte and Greensboro. California — the Bay Area, Los Angeles and San Diego. Vendors regularly travel between metros, and when they do the drive is priced into the quote before anyone commits.",
   },
 ];

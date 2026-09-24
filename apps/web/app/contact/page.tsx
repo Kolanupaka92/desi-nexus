@@ -52,7 +52,7 @@ export default async function ContactPage() {
       <Breadcrumbs base={SITE} crumbs={[{ label: "Contact" }]} />
 
       <section style={{ padding: "36px 0 8px", maxWidth: 680 }}>
-        <span className="pill">Texas · now booking</span>
+        <span className="pill">Texas · North Carolina · California</span>
         <h1 style={{ marginTop: "var(--space-4)" }}>Tell us what you are planning</h1>
         <p className="lede">
           You do not need an account to ask. Give us the occasion, roughly when and roughly

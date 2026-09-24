@@ -136,7 +136,7 @@ export const EVENT_CATEGORIES: readonly CardEntry[] = [
  * The craft cards: who you can book.
  *
  * `href` points at the Dallas-Fort Worth page for each, which is what the home
- * page already linked to -- every speciality exists in all eight metros, and
+ * page already linked to -- every speciality exists in all ten metros, and
  * the metro pages carry the rest.
  */
 export const SPECIALISTS: readonly CardEntry[] = [

@@ -46,7 +46,7 @@ export function Hero() {
       <Shell>
         <p className={styles.eyebrow}>
           <span className={styles.dot} aria-hidden="true" />
-          Texas · now booking
+          Texas · North Carolina · California
         </p>
 
         <h1 className={styles.title}>
@@ -55,8 +55,8 @@ export function Hero() {
 
         <p className={styles.lede}>
           Makeup artists, photographers, henna artists, pandits, decorators and creators for South
-          Asian events across Dallas–Fort Worth, Houston, Austin and San Antonio — matched on
-          whether they have worked your kind of function before.
+          Asian events across Texas, North Carolina and California — matched on whether they have
+          worked your kind of function before.
         </p>
 
         <div className={styles.actions}>
