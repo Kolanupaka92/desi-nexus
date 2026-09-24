@@ -30,7 +30,17 @@ import { dirname, resolve } from "node:path";
 import { EVENT_GROUPS } from "../src/domain/taxonomy.js";
 
 const here = dirname(fileURLToPath(import.meta.url));
-const copyPath = resolve(here, "../../../apps/web/content/occasions.ts");
+/*
+ * Four levels, not three: `npm test` compiles to dist/ and runs
+ * `node --test dist/test/*.test.js`, so at runtime this file lives in
+ * services/api/dist/test/ and the repository root is four up, not three.
+ *
+ * Three is what you get by counting the directories in the source tree, and it
+ * passes when the test is run straight off the source with tsx -- which is how
+ * I first ran it, and why CI caught this and my machine could not. The sibling
+ * seo-content-drift test already resolves four up for the same reason.
+ */
+const copyPath = resolve(here, "../../../../apps/web/content/occasions.ts");
 
 /**
  * Every function name the occasion copy is allowed to use, and the taxonomy
@@ -86,7 +96,18 @@ const PHRASE_TO_CODE: Readonly<Record<string, string>> = {
 const NOT_IN_TAXONOMY = ["onam", "pongal", "eid", "anniversaries", "sweet 16"];
 
 function readOccasions(): Array<{ key: string; description: string }> {
-  const source = readFileSync(copyPath, "utf8");
+  // A missing file must say which path it tried. A bare ENOENT from inside a
+  // test tells you nothing about whether the path is wrong or the file moved.
+  let source: string;
+  try {
+    source = readFileSync(copyPath, "utf8");
+  } catch (error) {
+    throw new Error(
+      `Could not read the occasion copy at ${copyPath}. ` +
+        "This path is resolved relative to the COMPILED location (dist/test/), " +
+        `not the source tree. Original error: ${(error as Error).message}`,
+    );
+  }
   const out: Array<{ key: string; description: string }> = [];
   // Each entry is `key: "x",` ... `description:\n  "...",`
   const entry = /key:\s*"([a-z_]+)"[\s\S]*?description:\s*\n?\s*"((?:[^"\\]|\\.)*)"/g;
