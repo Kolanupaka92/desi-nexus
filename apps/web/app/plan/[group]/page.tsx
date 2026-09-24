@@ -62,7 +62,7 @@ export default async function PlanPage({ params }: Params) {
     .sort((a, b) => b.overlap.length - a.overlap.length);
 
   return (
-    <>
+    <div className="shell">
       <Breadcrumbs base={SITE} crumbs={[{ label: "Plan", href: "/#plan" }, { label: plan.title }]} />
 
       <section className="plan-hero">
@@ -144,6 +144,6 @@ export default async function PlanPage({ params }: Params) {
           secondary={{ href: "/hire", label: "Browse vendors first" }}
         />
       </div>
-    </>
+    </div>
   );
 }

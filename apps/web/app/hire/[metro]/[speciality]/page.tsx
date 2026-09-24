@@ -69,7 +69,7 @@ export default async function HirePage({ params }: Params) {
   const others = SPECIALITIES.filter((other) => other.slug !== speciality.slug).slice(0, 8);
 
   return (
-    <>
+    <div className="shell">
       <JsonLd data={jsonLd} />
 
       <Breadcrumbs
@@ -162,6 +162,6 @@ export default async function HirePage({ params }: Params) {
           ))}
         </ul>
       </section>
-    </>
+    </div>
   );
 }

@@ -76,7 +76,7 @@ export default async function VendorPage({ params }: Params) {
   const monogram = vendor.businessName.trim().charAt(0).toUpperCase();
 
   return (
-    <>
+    <div className="shell">
       <JsonLd
         data={{
           "@context": "https://schema.org",
@@ -211,6 +211,6 @@ export default async function VendorPage({ params }: Params) {
         Published {new Date(vendor.publishedAt).toLocaleDateString("en-US", { month: "long", year: "numeric" })}.{" "}
         <Link href="/for-vendors">Work as a vendor</Link>
       </p>
-    </>
+    </div>
   );
 }

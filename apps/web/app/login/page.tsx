@@ -7,6 +7,7 @@ export const metadata: Metadata = { title: "Sign in" };
 
 export default function LoginPage() {
   return (
+    <div className="shell">
     <div style={{ maxWidth: 420, margin: "56px auto" }}>
       <h1>Sign in</h1>
       <div className="card">
@@ -30,6 +31,7 @@ export default function LoginPage() {
       <p className="faint" style={{ marginTop: 14 }}>
         New here? <Link href="/register">Create an account</Link>.
       </p>
+    </div>
     </div>
   );
 }

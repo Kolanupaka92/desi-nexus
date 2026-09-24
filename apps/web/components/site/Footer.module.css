@@ -1,0 +1,75 @@
+/*
+ * The footer.
+ *
+ * Every link here resolves to a page that exists: the metro columns are the
+ * eight /hire/[metro] routes and the speciality column is six of the seventeen
+ * /hire/[metro]/[speciality] routes, all statically generated from the same
+ * content module the pages render from. Nothing is invented to fill a column.
+ * A footer carrying "Careers", "Press" and "Blog" links that 404 is both the
+ * clearest tell that a site is a template and a crawl budget spent on nothing.
+ *
+ * It is also the internal-linking layer. These pages are the long tail that
+ * has to rank, and a link from every page is the cheapest way to keep each one
+ * two hops from anywhere.
+ */
+
+.foot {
+  margin-top: var(--s10);
+  padding-block: var(--s9) var(--s7);
+  background: var(--wine-deep);
+  color: rgb(255 255 255 / 68%);
+  font-size: var(--step--1);
+}
+
+.grid {
+  display: grid;
+  gap: var(--s7);
+  grid-template-columns: 1fr;
+}
+
+@media (min-width: 640px) { .grid { grid-template-columns: repeat(2, 1fr); } }
+@media (min-width: 980px) { .grid { grid-template-columns: 1.6fr repeat(3, 1fr); gap: var(--s8); } }
+
+.brandCol p {
+  margin-top: var(--s5);
+  max-width: 38ch;
+  line-height: 1.6;
+}
+
+.heading {
+  font-family: var(--font);
+  font-size: var(--step--2);
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--gold-bright);
+  margin: 0 0 var(--s4);
+}
+
+.list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.list a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 34px;
+  color: rgb(255 255 255 / 68%);
+  text-decoration: none;
+}
+
+.list a:hover { color: #fff; text-decoration: underline; }
+
+.base {
+  margin-top: var(--s8);
+  padding-top: var(--s5);
+  border-top: 1px solid rgb(255 255 255 / 14%);
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s3) var(--s6);
+  justify-content: space-between;
+  color: rgb(255 255 255 / 48%);
+  font-size: var(--step--2);
+}

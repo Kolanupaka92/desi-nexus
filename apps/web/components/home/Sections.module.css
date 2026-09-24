@@ -1,0 +1,188 @@
+/*
+ * The home page's own sections.
+ *
+ * Scoped to the home page, and that is the point: the old globals.css held
+ * these rules next to the vendor page's and the dashboard's, so a change to
+ * "the card" meant reading 1,582 lines to find out which cards you had just
+ * changed. These class names exist in exactly one file and are hashed at build
+ * time, so nothing outside this directory can reach them.
+ */
+
+.sectionHead {
+  max-width: var(--measure);
+  margin-bottom: var(--s7);
+}
+
+.kicker {
+  display: block;
+  font-size: var(--step--2);
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--accent-ink);
+  margin-bottom: var(--s3);
+}
+
+.sectionTitle {
+  font-size: var(--step-4);
+  margin: 0;
+}
+
+.sectionLede {
+  margin-top: var(--s4);
+  font-size: var(--step-1);
+  color: var(--ink-soft);
+  line-height: 1.55;
+}
+
+/* --- How it works --------------------------------------------------------
+ *
+ * Numbered, because it is a sequence and a grid of three equal boxes does not
+ * say so. The numeral is set in the display face at a size that makes it part
+ * of the design rather than a bullet.
+ */
+
+.steps {
+  display: grid;
+  gap: var(--s7);
+  grid-template-columns: 1fr;
+  counter-reset: step;
+}
+
+@media (min-width: 760px) {
+  .steps { grid-template-columns: repeat(3, 1fr); gap: var(--s6); }
+}
+
+.step {
+  position: relative;
+  isolation: isolate;
+  padding-top: var(--s6);
+  border-top: 2px solid var(--line-strong);
+}
+
+.step::before {
+  counter-increment: step;
+  content: counter(step);
+  position: absolute;
+  top: calc(-0.5em - 2px);
+  left: 0;
+  font-family: var(--serif);
+  font-size: var(--step-5);
+  font-weight: 600;
+  line-height: 1;
+  color: var(--line);
+  opacity: 0.55;
+  z-index: 0;
+}
+
+.stepTitle {
+  position: relative;
+  z-index: 1;
+  font-size: var(--step-2);
+  margin: 0 0 var(--s3);
+}
+
+.stepBody {
+  color: var(--ink-soft);
+  line-height: 1.6;
+  max-width: 34ch;
+}
+
+/* --- Specialities --------------------------------------------------------
+ *
+ * Small, dense, text-only chips. These are eight crafts, not eight
+ * destinations, so they get a list that scans rather than eight more colour
+ * blocks competing with the occasion grid above them.
+ */
+
+.crafts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s3);
+}
+
+.craft {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s3);
+  min-height: 48px;
+  padding: var(--s3) var(--s5);
+  border-radius: var(--r-full);
+  border: 1px solid var(--line-strong);
+  background: var(--card);
+  color: var(--ink);
+  font-size: var(--step--1);
+  font-weight: 500;
+  text-decoration: none;
+  transition:
+    border-color var(--fast) var(--ease),
+    background-color var(--fast) var(--ease),
+    transform var(--fast) var(--ease);
+}
+
+.craft:hover {
+  border-color: var(--maroon);
+  background: var(--paper-warm);
+  transform: translateY(-2px);
+  text-decoration: none;
+}
+
+.craftDot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--craft-dot, var(--marigold));
+  flex: none;
+}
+
+/* --- The money band ------------------------------------------------------ */
+
+.moneyGrid {
+  display: grid;
+  gap: var(--s7);
+  grid-template-columns: 1fr;
+  align-items: start;
+}
+
+@media (min-width: 880px) {
+  .moneyGrid { grid-template-columns: 1fr 1fr; gap: var(--s9); }
+}
+
+.moneyPoints {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: var(--s5);
+}
+
+.moneyPoint {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: var(--s4);
+  align-items: start;
+}
+
+.moneyIcon {
+  flex: none;
+  width: 34px;
+  height: 34px;
+  display: grid;
+  place-items: center;
+  border-radius: var(--r-full);
+  background: rgb(201 162 39 / 18%);
+  color: var(--gold-bright);
+}
+
+.moneyPoint strong {
+  display: block;
+  color: #fff;
+  font-weight: 600;
+  margin-bottom: 2px;
+}
+
+.moneyPoint span {
+  color: rgb(255 255 255 / 72%);
+  line-height: 1.55;
+  font-size: var(--step--1);
+}

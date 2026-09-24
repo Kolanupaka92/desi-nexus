@@ -1,0 +1,143 @@
+/*
+ * The hero.
+ *
+ * No photograph, and built as though that were the plan rather than a gap.
+ * The old hero put a pale gradient behind a heading and a search box and
+ * relied on the eye reading the gradient as "image loading"; this one is a
+ * deep wine band with the brand's own lattice cut through it, and the type is
+ * set at --step-6 so the headline is the thing you see rather than the thing
+ * in front of the thing you see.
+ */
+
+.hero {
+  position: relative;
+  overflow: hidden;
+  background: var(--wine-deep);
+  color: var(--gold-soft);
+  padding-block: clamp(64px, 9vw, 148px);
+  isolation: isolate;
+}
+
+/*
+ * A wash that is warm at one corner and deep at the other, so the band has a
+ * direction instead of sitting flat. Two radials, not a linear gradient: a
+ * linear band this tall shows its own banding on an 8-bit display.
+ */
+.hero::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -2;
+  background:
+    radial-gradient(90% 120% at 12% 8%, rgb(122 31 61 / 85%), transparent 62%),
+    radial-gradient(70% 100% at 88% 96%, rgb(201 162 39 / 22%), transparent 58%);
+}
+
+/* The jaali, large-scale and very low contrast. The same geometry as the
+   logo mark, so the page and the identity are drawn from one figure. */
+.hero::after {
+  content: "";
+  position: absolute;
+  inset: -10%;
+  z-index: -1;
+  opacity: 0.07;
+  background-image:
+    repeating-linear-gradient(45deg, var(--gold-bright) 0 1.5px, transparent 1.5px 48px),
+    repeating-linear-gradient(-45deg, var(--gold-bright) 0 1.5px, transparent 1.5px 48px);
+}
+
+.eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s2);
+  font-size: var(--step--2);
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--gold-bright);
+  margin-bottom: var(--s5);
+}
+
+.dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--saffron);
+}
+
+.title {
+  font-size: var(--step-6);
+  line-height: 0.98;
+  letter-spacing: -0.03em;
+  color: #fff;
+  max-width: 17ch;
+  margin: 0;
+}
+
+/*
+ * The emphasised clause, in italic with the gold underneath.
+ *
+ * The underline is a gradient background rather than text-decoration so it
+ * sits where it was put -- a real underline on a 96px italic serif collides
+ * with the descenders and there is no way to move it.
+ */
+.title em {
+  font-style: italic;
+  color: var(--gold-bright);
+  background-image: linear-gradient(var(--gold) 0 0);
+  background-size: 100% 3px;
+  background-position: 0 92%;
+  background-repeat: no-repeat;
+  padding-bottom: 0.06em;
+}
+
+.lede {
+  margin-top: var(--s6);
+  font-size: var(--step-1);
+  line-height: 1.55;
+  max-width: 54ch;
+  color: rgb(255 255 255 / 84%);
+}
+
+.actions {
+  margin-top: var(--s7);
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s4);
+  align-items: center;
+}
+
+/*
+ * The trust row. Every item here is a fact about how the product works, not a
+ * statistic about how popular it is -- "paid through escrow" is verifiable
+ * from the code, "2,000 happy families" would not be.
+ */
+.proof {
+  margin-top: var(--s8);
+  padding-top: var(--s6);
+  border-top: 1px solid rgb(255 255 255 / 14%);
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s5) var(--s7);
+}
+
+.proofItem {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--s3);
+  font-size: var(--step--1);
+  color: rgb(255 255 255 / 76%);
+  max-width: 26ch;
+}
+
+.proofItem svg {
+  flex: none;
+  margin-top: 2px;
+  color: var(--gold-bright);
+}
+
+.proofItem strong {
+  display: block;
+  color: #fff;
+  font-weight: 600;
+}

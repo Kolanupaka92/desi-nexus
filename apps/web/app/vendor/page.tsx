@@ -33,6 +33,7 @@ export default async function VendorPage() {
     .catch(() => null);
 
   return (
+    <div className="shell">
     <div style={{ maxWidth: 680, margin: "40px auto" }}>
       <h1>Your vendor profile</h1>
       <p className="muted">
@@ -96,6 +97,7 @@ export default async function VendorPage() {
           </div>
         </ActionForm>
       </div>
+    </div>
     </div>
   );
 }

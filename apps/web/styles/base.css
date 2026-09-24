@@ -1,0 +1,135 @@
+/*
+ * Element defaults. Selectors here may only be bare element selectors, plus
+ * the three utility classes at the bottom that genuinely have no owning
+ * component. Anything that names a component belongs in that component's
+ * module.
+ */
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+  /*
+   * Not `scroll-behavior: smooth` unconditionally: smooth scrolling is a
+   * vestibular trigger, and a skip link that glides for 400ms also defeats
+   * its own purpose for the keyboard user who pressed it.
+   */
+  scroll-behavior: auto;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  html {
+    scroll-behavior: smooth;
+  }
+}
+
+body {
+  margin: 0;
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--font);
+  font-size: var(--step-0);
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+h1, h2, h3, h4 {
+  font-family: var(--serif);
+  font-weight: 600;
+  line-height: 1.1;
+  letter-spacing: -0.022em;
+  margin: 0;
+  /* Fraunces has an optical-size axis; letting it track the rendered size is
+     the whole reason for choosing a variable display face. */
+  font-optical-sizing: auto;
+  text-wrap: balance;
+}
+
+p {
+  margin: 0;
+  text-wrap: pretty;
+}
+
+a {
+  color: inherit;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 0.18em;
+}
+
+img,
+svg,
+video {
+  display: block;
+  max-width: 100%;
+}
+
+img {
+  height: auto;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+  color: inherit;
+}
+
+/*
+ * One focus ring, defined once, visible on every ground.
+ *
+ * Two layers: a dark inner ring and a light outer one. On paper the dark ring
+ * carries it; on a wine band the light one does. A single-colour ring always
+ * disappears against one of the two, and it disappears silently.
+ */
+:focus-visible {
+  outline: 2px solid var(--wine);
+  outline-offset: 2px;
+  box-shadow: 0 0 0 4px var(--gold-soft);
+  border-radius: 3px;
+}
+
+::selection {
+  background: var(--gold-soft);
+  color: var(--ink);
+}
+
+/* Screen-reader-only, but still focusable and still in the a11y tree. */
+.srOnly {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+
+/*
+ * The skip link. Parked off-screen rather than hidden, because a link that is
+ * display:none is not focusable and a skip link that cannot be focused is
+ * decoration.
+ */
+.skip {
+  position: absolute;
+  left: var(--s4);
+  top: -100px;
+  z-index: 100;
+  padding: var(--s3) var(--s5);
+  background: var(--wine-deep);
+  color: var(--gold-soft);
+  border-radius: var(--r-sm);
+  text-decoration: none;
+  transition: top var(--fast) var(--ease);
+}
+
+.skip:focus-visible {
+  top: var(--s4);
+}

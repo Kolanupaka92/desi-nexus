@@ -1,0 +1,77 @@
+/*
+ * The logo lockup.
+ *
+ * Everything is sized in `em` from the lockup's own font-size, so the mark and
+ * the wordmark keep one fixed optical relationship and a placement is resized
+ * by changing a single value. A px width on the mark plus a step on the type
+ * drifts the moment either end is touched, and drifts invisibly, because
+ * nothing fails.
+ */
+
+.logo {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.46em;
+  min-height: 44px;
+  font-family: var(--serif);
+  font-weight: 600;
+  font-size: var(--step-2);
+  letter-spacing: -0.02em;
+  line-height: 1;
+  color: var(--ink);
+  white-space: nowrap;
+  text-decoration: none;
+}
+
+.logo:hover { text-decoration: none; }
+
+/*
+ * The mark takes the accent and the wordmark the neutral, so the lockup has
+ * one colour doing work rather than two competing. The SVG fills with
+ * `currentColor`, so a reversed placement sets `color` here and nothing else.
+ */
+.mark {
+  /* Slightly over the wordmark's cap height, which is where a mark beside
+     all-caps type has to sit: matched exactly it reads as undersized. */
+  width: 1.36em;
+  height: 1.36em;
+  flex: none;
+  color: var(--maroon);
+}
+
+/*
+ * The separator is drawn, not typed. A literal middle dot in the markup makes
+ * the accessible name "UTSAV middle dot ..." , puts a glyph nobody chose into
+ * anything that copies the text, and leaves its size at the mercy of the font.
+ *
+ * The words are mapped, so the dot count falls out of the word count: a
+ * one-word name draws no separator without anyone remembering to remove one.
+ */
+.word { display: inline-flex; align-items: center; }
+.word > span + span { display: inline-flex; align-items: center; }
+
+.word > span + span::before {
+  content: "";
+  flex: none;
+  width: 0.2em;
+  height: 0.2em;
+  margin: 0 0.34em;
+  /* All caps have no descenders, so they sit high in the content box and
+     centring on the box puts the dot low. Measured at 64px. */
+  margin-bottom: 0.1em;
+  border-radius: 50%;
+  background: var(--marigold);
+}
+
+/* Mark over wordmark, for square placements. */
+.stacked { flex-direction: column; gap: 0.4em; }
+.stacked .mark { width: 2.4em; height: 2.4em; }
+
+/*
+ * Reversed, for the wine bands and for print. Gold on wine is the favicon's
+ * pairing, so the reversed lockup and the tab icon agree rather than being two
+ * drawings that resemble each other.
+ */
+.reversed { color: var(--gold-soft); }
+.reversed .mark { color: var(--gold); }
+.reversed .word > span + span::before { background: var(--saffron); }

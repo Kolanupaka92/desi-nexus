@@ -1,5 +1,7 @@
 import Link from "next/link";
-import { Logo } from "@/components/site/Logo";
+import styles from "./Footer.module.css";
+import { Logo } from "./Logo";
+import { Shell } from "@/components/ui/Layout";
 import { METROS, SPECIALITIES } from "@/content/seo";
 
 /**
@@ -32,11 +34,11 @@ export function Footer() {
   );
 
   return (
-    <footer className="foot">
-      <div className="shell">
-        <div className="foot-grid">
-          <div className="foot-brand">
-            <Logo />
+    <footer className={styles.foot}>
+      <Shell>
+        <div className={styles.grid}>
+          <div className={styles.brandCol}>
+            <Logo reversed />
             <p>
               Makeup artists, photographers, henna artists, pandits, decorators and creators for
               South Asian events across Texas — matched on the functions they have actually
@@ -45,8 +47,8 @@ export function Footer() {
           </div>
 
           <div>
-            <h3>Where</h3>
-            <ul>
+            <h3 className={styles.heading}>Where</h3>
+            <ul className={styles.list}>
               {METROS.map((metro) => (
                 <li key={metro.slug}>
                   <Link href={`/hire/${metro.slug}`}>{metro.name}</Link>
@@ -56,8 +58,8 @@ export function Footer() {
           </div>
 
           <div>
-            <h3>Who</h3>
-            <ul>
+            <h3 className={styles.heading}>Who</h3>
+            <ul className={styles.list}>
               {specialities.map((speciality) => (
                 <li key={speciality.slug}>
                   <Link
@@ -75,8 +77,8 @@ export function Footer() {
           </div>
 
           <div>
-            <h3>Platform</h3>
-            <ul>
+            <h3 className={styles.heading}>Platform</h3>
+            <ul className={styles.list}>
               <li>
                 <Link href="/gigs/new">Post a brief</Link>
               </li>
@@ -99,14 +101,14 @@ export function Footer() {
           </div>
         </div>
 
-        <div className="foot-base">
+        <div className={styles.base}>
           <p>
             Serving Dallas-Fort Worth, Greater Houston, Austin, San Antonio, the Rio Grande
             Valley, El Paso, Corpus Christi and Lubbock.
           </p>
           <p>Deposits are held in escrow and released after the event. Pilot region: Texas.</p>
         </div>
-      </div>
+      </Shell>
     </footer>
   );
 }

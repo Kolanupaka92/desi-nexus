@@ -48,7 +48,7 @@ export default async function ContactPage() {
   const metroOptions = METROS.map((metro) => [metro.code, metro.name] as const);
 
   return (
-    <>
+    <div className="shell">
       <Breadcrumbs base={SITE} crumbs={[{ label: "Contact" }]} />
 
       <section style={{ padding: "36px 0 8px", maxWidth: 680 }}>
@@ -73,6 +73,6 @@ export default async function ContactPage() {
           <Faq items={HOME_FAQ} />
         </div>
       </section>
-    </>
+    </div>
   );
 }

@@ -38,7 +38,7 @@ export default async function MetroPage({ params }: Params) {
   if (!metro) notFound();
 
   return (
-    <>
+    <div className="shell">
       <Breadcrumbs
         base={SITE}
         crumbs={[{ label: "Hire", href: "/hire" }, { label: metro.name }]}
@@ -93,6 +93,6 @@ export default async function MetroPage({ params }: Params) {
           ))}
         </ul>
       </section>
-    </>
+    </div>
   );
 }

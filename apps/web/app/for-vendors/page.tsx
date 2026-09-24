@@ -48,7 +48,7 @@ const PROMISES = [
 
 export default function ForVendorsPage() {
   return (
-    <>
+    <div className="shell">
       <section style={{ padding: "40px 0 8px", maxWidth: 760 }}>
         <span className="pill">Now onboarding crew &amp; creators</span>
         <h1 style={{ marginTop: "var(--space-4)" }}>
@@ -122,6 +122,6 @@ export default function ForVendorsPage() {
           secondary={{ href: "/gigs", label: "See open gigs" }}
         />
       </div>
-    </>
+    </div>
   );
 }

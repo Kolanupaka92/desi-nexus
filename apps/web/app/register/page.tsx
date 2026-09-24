@@ -23,6 +23,7 @@ export default async function RegisterPage({
   const data = await taxonomy().catch(() => null);
 
   return (
+    <div className="shell">
     <div style={{ maxWidth: 620, margin: "48px auto" }}>
       <h1>Create your account</h1>
       <p className="muted">
@@ -127,6 +128,7 @@ export default async function RegisterPage({
       <p className="faint" style={{ marginTop: 14 }}>
         Already have an account? <Link href="/login">Sign in</Link>.
       </p>
+    </div>
     </div>
   );
 }

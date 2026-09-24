@@ -93,7 +93,14 @@ export default async function RootLayout({ children }: { children: React.ReactNo
           Tab back in the header, which is the failure mode that makes people
           assume skip links do not work.
         */}
-        <main id="content" tabIndex={-1} className="shell">
+        {/*
+          No container class here any more. Bands are full-bleed and each one
+          puts its own <Shell> inside, which is what lets the hero and the dark
+          money band run edge to edge without the negative-margin `.bleed` hack
+          the old layout needed -- a hack that broke silently, as a 1px sliver
+          of paper down one edge, whenever a parent picked up padding.
+        */}
+        <main id="content" tabIndex={-1}>
           {children}
         </main>
 

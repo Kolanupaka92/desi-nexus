@@ -14,7 +14,7 @@ export const metadata: Metadata = {
 
 export default function HireIndexPage() {
   return (
-    <>
+    <div className="shell">
       <section style={{ padding: "40px 0 8px", maxWidth: 760 }}>
         <span className="pill">Texas pilot</span>
         <h1 style={{ marginTop: "var(--space-4)" }}>Hire crew who know the function</h1>
@@ -81,6 +81,6 @@ export default function HireIndexPage() {
           secondary={{ href: "/for-vendors", label: "I am a vendor" }}
         />
       </div>
-    </>
+    </div>
   );
 }

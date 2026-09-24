@@ -1,0 +1,180 @@
+/*
+ * The token layer. The only global stylesheet that declares values.
+ *
+ * What replaced it: a 1,582-line globals.css that held every token, every
+ * component's rules, and every page's layout in one file -- 22% of the whole
+ * web app. Nothing scoped anything, so `.card` meant one thing until a page
+ * needed it to mean another, and the only safe edit was an additive one. The
+ * file only grew.
+ *
+ * Now: values live here, element defaults live in base.css, and everything
+ * else is a CSS Module colocated with the component that owns it. A module's
+ * class names are hashed at build time, so one component physically cannot
+ * restyle another. The blast radius of a change is the file you changed.
+ *
+ * Rule for this file: declarations only, no selectors beyond :root and the
+ * media queries that redefine it. If you are writing a rule here, it belongs
+ * in a module.
+ */
+
+:root {
+  /* --- Ink and ground ---------------------------------------------------
+   *
+   * Warm neutrals, not grey. A cool grey next to saffron and wine reads as
+   * cheap; the paper carries a little red so the accents sit on it rather
+   * than on top of it.
+   */
+  --ink: #1a1512;
+  --ink-soft: #5b5149;
+  --ink-faint: #6b6158;
+  --paper: #fcfaf6;
+  --paper-warm: #f6f0e6;
+  --card: #ffffff;
+  --line: #e9e1d5;
+  --line-strong: #d6cab6;
+
+  /* --- The brand register ---------------------------------------------- */
+  --wine: #4a0e27;
+  --wine-deep: #26040f;
+  --wine-mid: #6b1636;
+  --maroon: #7a1f3d;
+  --gold: #c9a227;
+  --gold-bright: #e8c766;
+  --gold-soft: #f4e3b4;
+  --marigold: #d98324;
+  --saffron: #f2a516;
+  /*
+   * Marigold, dark enough to be read at 13px.
+   *
+   * --marigold on --paper measures 2.8:1. It is fine as a fill behind dark
+   * ink, and it fails 4.5:1 the moment it becomes the text colour -- which is
+   * exactly what the section kickers did. This is the same hue taken down to
+   * 5.5:1, for accent text only. Measured, not eyeballed.
+   */
+  --accent-ink: #9a5510;
+
+  /* --- Occasion colours -------------------------------------------------
+   *
+   * One colour per occasion group, and this is the single most important
+   * decision in the redesign.
+   *
+   * There are no photographs. There will not be photographs until somebody
+   * supplies files this environment cannot fetch, and a card sitting on a
+   * grey rectangle waiting for one looks broken rather than minimal. So the
+   * colour IS the card. Each is drawn from what the function actually looks
+   * like -- turmeric for haldi, henna green for mehndi, the indigo of an
+   * evening reception -- which means the grid reads as five distinct things
+   * at a glance, from across a room, which is exactly the job a photograph
+   * would have been doing.
+   *
+   * Every pair is checked for >= 4.5:1 against its own -ink value.
+   */
+  --occ-wedding: #7a1f3d;
+  --occ-wedding-ink: #ffeef4;
+  --occ-religious: #9a4a12;
+  --occ-religious-ink: #fff2e2;
+  --occ-milestone: #1f6b4f;
+  --occ-milestone-ink: #e7f7ef;
+  --occ-festival: #8c2f6d;
+  --occ-festival-ink: #fdeaf7;
+  --occ-commercial: #26456b;
+  --occ-commercial-ink: #e8f0fb;
+
+  /* --- Status ----------------------------------------------------------- */
+  --green: #1f7a53;
+  --green-soft: #e3f3ec;
+  --amber-soft: #fdf3d8;
+  --amber-ink: #7d5809;
+  --danger: #a3162f;
+  --danger-soft: #fceaed;
+
+  /* --- Type -------------------------------------------------------------
+   *
+   * Two families, loaded by next/font (lib/fonts.ts) and self-hosted at
+   * build time. The display fallback is a real book serif rather than the
+   * generic `serif` keyword, so a failed font request still looks chosen.
+   */
+  --font: var(--font-text), ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --serif: var(--font-display), "Iowan Old Style", Palatino, Georgia, serif;
+
+  /*
+   * One fluid scale. Each step interpolates between a 375px phone and a
+   * 1280px desktop, so a heading is never set by eyeballing a clamp() at the
+   * call site -- which is how the same heading ends up three sizes on three
+   * pages.
+   *
+   * This scale is wider at the top than the one it replaces: --step-6 exists
+   * because the new home page is carried by type rather than by a photograph,
+   * and type that has to carry a page needs somewhere to stand.
+   */
+  --step--2: clamp(0.76rem, 0.74rem + 0.09vw, 0.81rem);
+  --step--1: clamp(0.86rem, 0.83rem + 0.13vw, 0.93rem);
+  --step-0:  clamp(1rem, 0.97rem + 0.16vw, 1.08rem);
+  --step-1:  clamp(1.16rem, 1.1rem + 0.29vw, 1.32rem);
+  --step-2:  clamp(1.35rem, 1.23rem + 0.53vw, 1.66rem);
+  --step-3:  clamp(1.58rem, 1.36rem + 0.95vw, 2.1rem);
+  --step-4:  clamp(1.9rem, 1.48rem + 1.8vw, 2.9rem);
+  --step-5:  clamp(2.35rem, 1.55rem + 3.4vw, 4.1rem);
+  --step-6:  clamp(2.9rem, 1.5rem + 6vw, 6rem);
+
+  --measure: 64ch;
+  --measure-tight: 46ch;
+
+  /* --- Space ------------------------------------------------------------
+   *
+   * A modular ramp, not arbitrary pixels. --band is the vertical rhythm
+   * between page sections and is the only spacing value a page should need
+   * to reach for.
+   */
+  --s1: 4px;
+  --s2: 8px;
+  --s3: 12px;
+  --s4: 16px;
+  --s5: 24px;
+  --s6: 32px;
+  --s7: 48px;
+  --s8: 64px;
+  --s9: 96px;
+  --s10: 128px;
+  --band: clamp(56px, 4vw + 40px, 112px);
+  --gutter: clamp(20px, 4vw, 40px);
+
+  /* --- Shell ------------------------------------------------------------ */
+  --shell: 1200px;
+  --shell-narrow: 760px;
+
+  /* --- Shape ------------------------------------------------------------ */
+  --r-sm: 8px;
+  --r-md: 14px;
+  --r-lg: 22px;
+  --r-full: 999px;
+
+  /* --- Depth ------------------------------------------------------------
+   *
+   * Warm-tinted rather than neutral black, because a pure-black shadow on
+   * warm paper reads as dirt.
+   */
+  --shadow-sm: 0 1px 2px rgba(42, 20, 8, 0.05), 0 1px 3px rgba(42, 20, 8, 0.06);
+  --shadow-md: 0 4px 12px rgba(42, 20, 8, 0.07), 0 2px 4px rgba(42, 20, 8, 0.05);
+  --shadow-lg: 0 18px 44px rgba(42, 20, 8, 0.12), 0 4px 12px rgba(42, 20, 8, 0.06);
+
+  /* --- Motion ----------------------------------------------------------- */
+  --ease: cubic-bezier(0.2, 0.7, 0.3, 1);
+  --fast: 140ms;
+  --slow: 280ms;
+}
+
+/*
+ * Motion, zeroed at the source.
+ *
+ * Every transition and animation in every module reads --fast or --slow, so
+ * setting them to 0 here turns motion off across the whole app in one place.
+ * The alternative -- a prefers-reduced-motion block per module -- is a rule
+ * somebody forgets, and the person who needs it is the one who finds out.
+ */
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --fast: 0ms;
+    --slow: 0ms;
+  }
+}

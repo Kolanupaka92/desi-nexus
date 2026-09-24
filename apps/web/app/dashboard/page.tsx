@@ -27,6 +27,7 @@ export default async function DashboardPage() {
     : [];
 
   return (
+    <div className="shell">
     <div style={{ padding: "36px 0" }}>
       <div className="spread">
         <div>
@@ -111,6 +112,7 @@ export default async function DashboardPage() {
           )}
         </section>
       )}
+    </div>
     </div>
   );
 }

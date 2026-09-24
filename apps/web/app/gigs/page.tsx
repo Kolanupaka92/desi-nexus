@@ -39,6 +39,7 @@ export default async function BrowseGigsPage() {
   }
 
   return (
+    <div className="shell">
     <div style={{ padding: "36px 0", maxWidth: 800 }}>
       <h1>Open gigs for you</h1>
       <p className="muted">
@@ -95,6 +96,7 @@ export default async function BrowseGigsPage() {
           ))}
         </div>
       )}
+    </div>
     </div>
   );
 }

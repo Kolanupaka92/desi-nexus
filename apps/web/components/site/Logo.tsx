@@ -1,5 +1,7 @@
 import Link from "next/link";
+import styles from "./Logo.module.css";
 import { BRAND } from "@/content/brand";
+import { cx } from "@/components/ui/Layout";
 
 /**
  * The mark.
@@ -58,19 +60,22 @@ export function Mark({ className, title }: { className?: string; title?: string 
 export function Logo({
   className,
   stacked = false,
+  reversed = false,
 }: {
   className?: string;
   /** Mark above wordmark, for tight or square placements. */
   stacked?: boolean;
+  /** Gold on a dark ground, for the wine bands and for print. */
+  reversed?: boolean;
 }) {
   return (
     <Link
       href="/"
-      className={[`logo`, stacked ? "stacked" : "", className ?? ""].filter(Boolean).join(" ")}
+      className={cx(styles.logo, stacked && styles.stacked, reversed && styles.reversed, className)}
       aria-label={`${BRAND.name} — home`}
     >
-      <Mark className="logo-mark" />
-      <span className="logo-word" aria-hidden="true">
+      <Mark className={styles.mark} />
+      <span className={styles.word} aria-hidden="true">
         {BRAND.wordmark.map((part) => (
           <span key={part}>{part}</span>
         ))}

@@ -1,0 +1,142 @@
+/*
+ * The masthead.
+ *
+ * The menu still opens with a checkbox and a label rather than React state.
+ * That is not a party trick: the marketing pages are server components with no
+ * other interactivity, so a useState menu would be the only reason any of them
+ * ships a client bundle at all, and it would leave the menu dead between first
+ * paint and hydration. On the connection someone gets opening a WhatsApp link
+ * on a phone in a banquet hall car park, that gap is not short.
+ */
+
+.masthead {
+  position: sticky;
+  top: 0;
+  z-index: 40;
+  background: rgb(252 250 246 / 88%);
+  backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--line);
+}
+
+.inner {
+  display: flex;
+  align-items: center;
+  gap: var(--s5);
+  min-height: 68px;
+}
+
+.nav {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: var(--s6);
+}
+
+.link {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  font-size: var(--step--1);
+  color: var(--ink-soft);
+  text-decoration: none;
+  position: relative;
+}
+
+.link:hover { color: var(--ink); text-decoration: none; }
+
+/* An underline that grows from the left. The browser's own text-decoration
+   sits too close to the baseline at this size and reads as a typo. */
+.link::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 14px;
+  height: 1.5px;
+  background: var(--marigold);
+  transform: scaleX(0);
+  transform-origin: left;
+  transition: transform var(--fast) var(--ease);
+}
+
+.link:hover::after { transform: scaleX(1); }
+
+/* --- The mobile menu -----------------------------------------------------
+ *
+ * The input is visually hidden but focusable, and the label carries the button
+ * role, so the control is reachable by keyboard and announced as a button
+ * rather than as a checkbox.
+ */
+
+.toggle {
+  position: absolute;
+  opacity: 0;
+  width: 44px;
+  height: 44px;
+  margin: 0;
+  cursor: pointer;
+}
+
+.toggleButton {
+  display: none;
+  margin-left: auto;
+  width: 44px;
+  height: 44px;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--r-sm);
+  background: var(--card);
+  cursor: pointer;
+  color: var(--ink);
+}
+
+.barClose { display: none; }
+
+@media (max-width: 880px) {
+  .toggle { z-index: 2; }
+  .toggleButton { display: inline-flex; }
+
+  .nav {
+    position: fixed;
+    inset: 68px 0 auto;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0;
+    margin: 0;
+    padding: var(--s4) var(--gutter) var(--s7);
+    background: var(--paper);
+    border-bottom: 1px solid var(--line);
+    box-shadow: var(--shadow-lg);
+    /* clip-path rather than display:none so the panel keeps its focusable
+       children out of reach while closed without a layout jump when it opens. */
+    transform: translateY(-8px);
+    opacity: 0;
+    visibility: hidden;
+    transition:
+      transform var(--slow) var(--ease),
+      opacity var(--slow) var(--ease),
+      visibility var(--slow);
+  }
+
+  .toggle:checked ~ .nav {
+    transform: none;
+    opacity: 1;
+    visibility: visible;
+  }
+
+  .toggle:checked ~ .toggleButton .barOpen { display: none; }
+  .toggle:checked ~ .toggleButton .barClose { display: block; }
+
+  .link {
+    min-height: 52px;
+    font-size: var(--step-0);
+    border-bottom: 1px solid var(--line);
+  }
+
+  .link::after { display: none; }
+
+  .navCta { margin-top: var(--s5); }
+  .navCta a,
+  .navCta button { width: 100%; }
+}
