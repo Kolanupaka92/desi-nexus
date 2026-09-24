@@ -324,39 +324,45 @@ export const MATCH_WEIGHTS: ReadonlyArray<{
   readonly why: string;
 }> = [
   {
+    key: "eventFit",
+    label: "Worked your function",
+    weight: 0.28,
+    why: "Whether they have worked a half-saree function, a griha pravesham, a nikah — the thing you are actually planning. Someone who has run forty sangeets knows where the bottleneck is at hour three; someone who has photographed forty corporate launches does not, however good they are.",
+  },
+  {
     key: "cultural",
     label: "Cultural fit",
-    weight: 0.3,
-    why: "Whether they have actually worked your tradition. A MUA who does South Indian bridal is not interchangeable with one who does Punjabi Sikh bridal, and booking the wrong one is the most common way a function is ruined.",
+    weight: 0.24,
+    why: "Whether they know your tradition. A MUA who does South Indian bridal is not interchangeable with one who does Punjabi Sikh bridal, and booking the wrong one is the most common way a function is ruined.",
   },
   {
     key: "proximity",
     label: "Distance",
-    weight: 0.22,
+    weight: 0.17,
     why: "Measured from the venue's real address, not a city centre. It decides what the drive costs and whether they can make a 6am call time.",
   },
   {
     key: "budget",
     label: "Budget fit",
-    weight: 0.16,
+    weight: 0.12,
     why: "Their rate against your range. Being shown someone at triple your budget wastes an enquiry for both of you.",
   },
   {
     key: "language",
     label: "Language",
-    weight: 0.12,
+    weight: 0.07,
     why: "What they speak on the day, with your family and the other vendors — not what is on their profile.",
   },
   {
     key: "reputation",
     label: "Track record",
-    weight: 0.12,
+    weight: 0.07,
     why: "Completed bookings and how they were reviewed. Deliberately not the heaviest weight, or nobody new could ever get their first booking.",
   },
   {
     key: "responsiveness",
     label: "Replies fast",
-    weight: 0.08,
+    weight: 0.05,
     why: "How quickly they answer. Small, because a slow reply from the right artist still beats a fast one from the wrong one.",
   },
 ];

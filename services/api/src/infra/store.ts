@@ -217,6 +217,24 @@ class MemoryProfiles implements ProfileRepository {
       ...("medianResponseMinutes" in stored && stored.medianResponseMinutes !== undefined
         ? { medianResponseMinutes: stored.medianResponseMinutes }
         : {}),
+      /*
+       * Event history survives a save that does not mention it.
+       *
+       * The Postgres store only touches crew_event_links when the incoming
+       * profile actually carries eventTypes, so a client that has not been
+       * updated cannot wipe a vendor's history. This store replaces the whole
+       * object, so without this line the same request erases it here and not
+       * there -- and development runs on this backing, so the two would
+       * disagree in exactly the place nobody looks.
+       *
+       * An explicit empty array still clears it: that is a vendor saying
+       * "none of these", which is a real answer and different from silence.
+       */
+      ...("eventTypes" in incoming && (incoming as CrewProfile).eventTypes !== undefined
+        ? {}
+        : "eventTypes" in stored && (stored as CrewProfile).eventTypes !== undefined
+          ? { eventTypes: (stored as CrewProfile).eventTypes }
+          : {}),
     };
   }
 

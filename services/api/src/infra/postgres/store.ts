@@ -267,6 +267,35 @@ class PgProfiles implements ProfileRepository {
         );
       }
 
+      /*
+       * Event links, written only when the caller supplied them.
+       *
+       * `undefined` means the request did not mention event types at all, and
+       * a profile save that happens not to carry them must not erase what the
+       * vendor recorded last time -- the same reasoning that keeps
+       * stripe_account_id and the rating columns out of the UPDATE SET list
+       * above. An explicit empty array does clear them, because that is a
+       * vendor saying "none".
+       *
+       * verified_count is never written here. It is the platform's to derive
+       * from completed gigs; a vendor's own save must not be able to raise it.
+       */
+      if (profile.eventTypes !== undefined) {
+        await tx.query(`DELETE FROM crew_event_links WHERE user_id = $1`, [profile.userId]);
+        if (profile.eventTypes.length > 0) {
+          await tx.query(
+            `INSERT INTO crew_event_links (user_id, event_type_code, claimed_count)
+             SELECT $1, code, claimed
+             FROM unnest($2::text[], $3::int[]) AS t(code, claimed)`,
+            [
+              profile.userId,
+              profile.eventTypes.map((entry) => entry.eventType),
+              profile.eventTypes.map((entry) => entry.claimedCount ?? null),
+            ],
+          );
+        }
+      }
+
       await tx.query(`DELETE FROM crew_cultural_tags WHERE user_id = $1`, [profile.userId]);
       if (profile.culturalTags.length > 0) {
         await tx.query(
@@ -415,7 +444,7 @@ async function loadCrew(db: Database, userId: string): Promise<CrewProfile | und
   const row = rows[0];
   if (!row) return undefined;
 
-  const [specialties, tags, dates] = await Promise.all([
+  const [specialties, tags, dates, events] = await Promise.all([
     db.query<{ specialty_code: string }>(
       `SELECT specialty_code FROM crew_specialty_links WHERE user_id = $1 ORDER BY specialty_code`,
       [userId],
@@ -428,6 +457,11 @@ async function loadCrew(db: Database, userId: string): Promise<CrewProfile | und
       `SELECT on_date FROM vendor_unavailability WHERE user_id = $1 ORDER BY on_date`,
       [userId],
     ),
+    db.query<{ event_type_code: string; claimed_count: number | null; verified_count: number }>(
+      `SELECT event_type_code, claimed_count, verified_count
+       FROM crew_event_links WHERE user_id = $1 ORDER BY event_type_code`,
+      [userId],
+    ),
     ]);
   const assets = await db.query<{ id: string }>(
     `SELECT id FROM portfolio_assets WHERE user_id = $1 ORDER BY position, id`,
@@ -437,6 +471,23 @@ async function loadCrew(db: Database, userId: string): Promise<CrewProfile | und
   return {
     userId,
     specialties: specialties.map((r) => r.specialty_code) as CrewProfile["specialties"],
+    /*
+     * No rows reads as "not filled in", not as "none of these".
+     *
+     * Returning [] here would make every vendor who predates this table look
+     * like they had actively excluded every function, and eventFitScore ranks
+     * that below an unknown -- so the migration alone would have demoted the
+     * entire existing roster. undefined scores them neutral until they say.
+     */
+    ...(events.length > 0
+      ? {
+          eventTypes: events.map((r) => ({
+            eventType: r.event_type_code,
+            ...(r.claimed_count === null ? {} : { claimedCount: num(r.claimed_count) }),
+            verifiedCount: num(r.verified_count),
+          })) as CrewProfile["eventTypes"],
+        }
+      : {}),
     culturalTags: tags.map((r) => r.tag_code) as CrewProfile["culturalTags"],
     startingRateCents: num(row.starting_rate_cents),
     travelPolicy: {

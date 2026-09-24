@@ -10,6 +10,7 @@ export const metadata: Metadata = { title: "Your vendor profile" };
 
 interface CrewProfile {
   readonly specialties: string[];
+  readonly eventTypes?: ReadonlyArray<{ eventType: string }>;
   readonly culturalTags: string[];
   readonly startingRateCents: number;
   readonly yearsExperience: number;
@@ -59,6 +60,19 @@ export default async function VendorPage() {
               defaultSelected={existing?.specialties ?? []}
             />
             <p className="hint">You are only shown gigs for the specialities you list here.</p>
+          </div>
+
+          <div className="field">
+            <label>Functions you have worked</label>
+            <CheckGroup
+              name="eventTypes"
+              options={Object.values(data.eventGroups).flat()}
+              defaultSelected={existing?.eventTypes?.map((entry) => entry.eventType) ?? []}
+            />
+            <p className="hint">
+              This is the single biggest factor in how you rank. A host planning a half-saree
+              function sees the people who have worked one before, ahead of everyone else.
+            </p>
           </div>
 
           <div className="field">
