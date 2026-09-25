@@ -1,11 +1,16 @@
 /**
- * Geofencing and travel economics for Texas.
+ * Geofencing and travel economics.
  *
- * Texas is the whole problem. DFW to Greater Houston is ~240 miles, which is
- * further than London to Paris, and a MUA who says "I cover Texas" means
- * something very different from one who says "I cover Frisco". Every match is
- * therefore filtered on a real distance, and every cross-metro booking carries
- * a travel fee computed the same way for both sides before anyone commits.
+ * Distance is the whole problem. DFW to Greater Houston is ~240 miles, further
+ * than London to Paris, and a MUA who says "I cover Texas" means something very
+ * different from one who says "I cover Frisco". Every match is therefore
+ * filtered on a real distance, and every cross-metro booking carries a travel
+ * fee computed the same way for both sides before anyone commits.
+ *
+ * The footprint is three states now, not one, and the arithmetic is unchanged
+ * because it was never about Texas -- it is haversine miles against a metro
+ * centre. What did change is that `state` is carried on every metro, because a
+ * visitor in Cary needs to see North Carolina and not a list headed "Texas".
  */
 import { assertCents, type Cents } from "./money.js";
 
@@ -17,24 +22,47 @@ export interface LatLng {
 export interface Metro {
   readonly id: string;
   readonly name: string;
+  /** Two-letter US state code, for grouping the public pages. */
+  readonly state: "TX" | "NC" | "CA";
   readonly center: LatLng;
   /** Miles from the centre still considered "in metro" for fee purposes. */
   readonly radiusMiles: number;
 }
 
-/** The pilot footprint. Centres are metro centroids, not city halls. */
-export const TEXAS_METROS: readonly Metro[] = [
-  { id: "dfw", name: "Dallas-Fort Worth", center: { lat: 32.8, lng: -97.05 }, radiusMiles: 45 },
-  { id: "hou", name: "Greater Houston", center: { lat: 29.79, lng: -95.42 }, radiusMiles: 45 },
-  { id: "aus", name: "Austin", center: { lat: 30.31, lng: -97.75 }, radiusMiles: 32 },
-  { id: "sat", name: "San Antonio", center: { lat: 29.47, lng: -98.52 }, radiusMiles: 32 },
-  { id: "elp", name: "El Paso", center: { lat: 31.79, lng: -106.42 }, radiusMiles: 25 },
-  { id: "rgv", name: "Rio Grande Valley", center: { lat: 26.23, lng: -98.13 }, radiusMiles: 35 },
-  { id: "cc", name: "Corpus Christi", center: { lat: 27.78, lng: -97.42 }, radiusMiles: 25 },
-  { id: "lbb", name: "Lubbock", center: { lat: 33.58, lng: -101.86 }, radiusMiles: 20 },
+/**
+ * The live footprint. Centres are metro centroids, not city halls.
+ *
+ * Ten metros across Texas, North Carolina and California. Four Texas metros
+ * that were seeded at the start -- El Paso, the Rio Grande Valley, Corpus
+ * Christi and Lubbock -- are no longer served and are absent here; migration
+ * 008 marks their rows inactive rather than deleting them, because
+ * `users.metro_code` and `gigs.metro_code` reference them and a delete would
+ * either fail or orphan a record.
+ *
+ * The Bay Area is one metro rather than San Francisco and San Jose separately,
+ * which is a deliberate trade: a 45-mile radius from Hayward covers both, and
+ * splitting them would put Fremont -- where a great deal of the South Bay's
+ * South Asian event work actually happens -- on a boundary between two pages.
+ * The travel quote is computed from the venue's real coordinates either way,
+ * so the merge costs accuracy in the metro label, not in anybody's fee.
+ */
+export const SERVICE_METROS: readonly Metro[] = [
+  // Texas
+  { id: "dfw", name: "Dallas-Fort Worth", state: "TX", center: { lat: 32.8, lng: -97.05 }, radiusMiles: 45 },
+  { id: "hou", name: "Greater Houston", state: "TX", center: { lat: 29.79, lng: -95.42 }, radiusMiles: 45 },
+  { id: "aus", name: "Austin", state: "TX", center: { lat: 30.31, lng: -97.75 }, radiusMiles: 32 },
+  { id: "sat", name: "San Antonio", state: "TX", center: { lat: 29.47, lng: -98.52 }, radiusMiles: 32 },
+  // North Carolina
+  { id: "rdu", name: "Raleigh-Durham", state: "NC", center: { lat: 35.86, lng: -78.78 }, radiusMiles: 35 },
+  { id: "clt", name: "Charlotte", state: "NC", center: { lat: 35.15, lng: -80.83 }, radiusMiles: 35 },
+  { id: "gso", name: "Greensboro", state: "NC", center: { lat: 36.07, lng: -79.82 }, radiusMiles: 30 },
+  // California
+  { id: "bay", name: "Bay Area", state: "CA", center: { lat: 37.55, lng: -122.1 }, radiusMiles: 45 },
+  { id: "lax", name: "Los Angeles", state: "CA", center: { lat: 34.05, lng: -118.24 }, radiusMiles: 50 },
+  { id: "sd", name: "San Diego", state: "CA", center: { lat: 32.83, lng: -117.15 }, radiusMiles: 30 },
 ];
 
-const METRO_BY_ID = new Map(TEXAS_METROS.map((m) => [m.id, m]));
+const METRO_BY_ID = new Map(SERVICE_METROS.map((m) => [m.id, m]));
 
 export function metroById(id: string): Metro | undefined {
   return METRO_BY_ID.get(id);
@@ -74,11 +102,11 @@ export function estimatedRoadMiles(a: LatLng, b: LatLng): number {
 
 export function nearestMetro(point: LatLng): { metro: Metro; miles: number } {
   let best: { metro: Metro; miles: number } | undefined;
-  for (const metro of TEXAS_METROS) {
+  for (const metro of SERVICE_METROS) {
     const miles = haversineMiles(point, metro.center);
     if (!best || miles < best.miles) best = { metro, miles };
   }
-  // TEXAS_METROS is non-empty, so this is always assigned.
+  // SERVICE_METROS is non-empty, so this is always assigned.
   return best as { metro: Metro; miles: number };
 }
 

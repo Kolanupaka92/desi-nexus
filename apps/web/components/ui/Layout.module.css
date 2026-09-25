@@ -1,0 +1,101 @@
+/*
+ * Layout primitives.
+ *
+ * Four of them, and between them they lay out every page in the app. This is
+ * the second half of the fix to the old globals.css: the tokens stopped page
+ * authors inventing values, and these stop them inventing grids. Previously
+ * each page wrote its own `display:grid` with its own columns and its own
+ * breakpoints, which is why no two sections lined up.
+ */
+
+/* Horizontal container. The gutter is a token, so every page's left edge is
+   the same left edge at every width. */
+.shell {
+  width: 100%;
+  max-width: var(--shell);
+  margin-inline: auto;
+  padding-inline: var(--gutter);
+}
+
+.narrow {
+  max-width: var(--shell-narrow);
+}
+
+/*
+ * A full-width band of colour with its contents still on the shell grid.
+ *
+ * The old code did this with a negative-margin `.bleed` hack that broke the
+ * moment a parent had its own padding, and broke silently -- a 1px sliver of
+ * paper down one edge that nobody notices until a customer screenshots it.
+ * A band is its own element now, and the shell inside it does the aligning.
+ */
+.band {
+  padding-block: var(--band);
+}
+
+.bandPaper { background: var(--paper-warm); }
+
+.bandDark {
+  background: var(--wine-deep);
+  color: var(--gold-soft);
+}
+
+.bandDark h1,
+.bandDark h2,
+.bandDark h3 { color: #fff; }
+
+/* On a dark band the light half of the focus ring has to do the work. */
+.bandDark :focus-visible {
+  outline-color: var(--gold-bright);
+  box-shadow: 0 0 0 4px rgba(0, 0, 0, 0.45);
+}
+
+/*
+ * Vertical rhythm by ownership: a stack spaces its own children, so no child
+ * carries a margin that depends on what happens to sit above it. `* + *` and
+ * not `> *` so the first child never contributes leading space.
+ */
+.stack > * + * { margin-top: var(--flow, var(--s5)); }
+.stackTight { --flow: var(--s3); }
+.stackLoose { --flow: var(--s7); }
+
+/*
+ * An auto-fitting grid. `min()` rather than a bare minimum so the track can
+ * never be wider than the container -- the bug that makes a 320px phone
+ * scroll sideways, which no desktop QA pass catches.
+ */
+.grid {
+  display: grid;
+  gap: var(--s5);
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, var(--col, 280px)), 1fr));
+}
+
+.gridWide { --col: 340px; }
+.gridNarrow { --col: 210px; }
+
+/*
+ * Text colours on a dark band.
+ *
+ * The section heading block sets its lede to --ink-soft, which is a dark warm
+ * grey: correct on paper, and 1.7:1 against wine-deep. Caught in a screenshot,
+ * not by any check -- contrast failures render, they just render unreadable.
+ *
+ * Rather than every component learning which ground it is on, the band
+ * redefines the two ink tokens its children read. A component keeps asking for
+ * "soft ink" and gets ink that is soft *for this ground*.
+ */
+.bandDark {
+  --ink: #fff;
+  --ink-soft: rgb(255 255 255 / 78%);
+  --ink-faint: rgb(255 255 255 / 58%);
+  --line: rgb(255 255 255 / 16%);
+  --line-strong: rgb(255 255 255 / 28%);
+  /*
+   * --accent-ink is the darkened marigold that clears 4.5:1 on paper. On wine
+   * it is 3.3:1 and fails, which is the same mistake in the other direction --
+   * the fix for the light ground broke the dark one. Gold-bright here measures
+   * 11.6:1. Every token the band redefines is on this list for that reason:
+   * one of them was wrong until a check said so.
+   */
+  --accent-ink: var(--gold-bright);
+}

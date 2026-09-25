@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import {
-  TEXAS_METROS,
+  SERVICE_METROS,
   haversineMiles,
   nearestMetro,
   quoteTravel,
@@ -66,7 +66,7 @@ test("an incoherent travel policy is rejected", () => {
 });
 
 test("every pilot metro has a positive fence", () => {
-  for (const metro of TEXAS_METROS) {
+  for (const metro of SERVICE_METROS) {
     assert.ok(metro.radiusMiles > 0, `${metro.id} has no radius`);
     assert.ok(withinPilotFootprint(metro.center), `${metro.id} centre is outside its own fence`);
   }

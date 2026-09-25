@@ -7,6 +7,7 @@ import { Header } from "@/components/site/Header";
 import { Footer } from "@/components/site/Footer";
 import { JsonLd } from "@/components/site/JsonLd";
 import "./globals.css";
+import { SITE_URL } from "@/content/site";
 
 /**
  * Absolute base for canonicals and Open Graph URLs.
@@ -16,7 +17,7 @@ import "./globals.css";
  * served the page, so a preview deployment or an apex/www mismatch quietly
  * declares itself canonical and splits the ranking it was meant to consolidate.
  */
-const SITE = process.env.NEXT_PUBLIC_SITE_URL ?? "https://desi-nexus.com";
+const SITE = SITE_URL;
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE),
@@ -25,7 +26,7 @@ export const metadata: Metadata = {
     template: `%s · ${BRAND.name}`,
   },
   description:
-    "Book verified makeup artists, photographers, henna artists, pandits and creators for South Asian events across Dallas-Fort Worth, Houston, Austin and San Antonio.",
+    "Book verified makeup artists, photographers, henna artists, pandits and creators for South Asian events across Texas, North Carolina and California.",
   openGraph: {
     title: `${BRAND.name} — ${BRAND.tagline}`,
     description:
@@ -63,7 +64,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
                 name: BRAND.name,
                 url: SITE,
                 description:
-                  "A marketplace connecting South Asian event hosts in Texas with the crew and creators who work their events.",
+                  "A marketplace connecting South Asian event hosts in Texas, North Carolina and California with the crew and creators who work their events.",
                 areaServed: {
                   "@type": "State",
                   name: "Texas",
@@ -93,7 +94,14 @@ export default async function RootLayout({ children }: { children: React.ReactNo
           Tab back in the header, which is the failure mode that makes people
           assume skip links do not work.
         */}
-        <main id="content" tabIndex={-1} className="shell">
+        {/*
+          No container class here any more. Bands are full-bleed and each one
+          puts its own <Shell> inside, which is what lets the hero and the dark
+          money band run edge to edge without the negative-margin `.bleed` hack
+          the old layout needed -- a hack that broke silently, as a 1px sliver
+          of paper down one edge, whenever a parent picked up padding.
+        */}
+        <main id="content" tabIndex={-1}>
           {children}
         </main>
 

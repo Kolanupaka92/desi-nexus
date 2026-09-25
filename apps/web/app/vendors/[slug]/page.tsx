@@ -3,11 +3,12 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ApiCallError, vendorProfile, type PublicVendorProfile } from "@/lib/api";
 import { label, usd } from "@/lib/format";
-import { METROS } from "@/content/seo";
+import { METROS, STATE_NAMES } from "@/content/seo";
 import { Breadcrumbs } from "@/components/site/Breadcrumbs";
 import { CTASection } from "@/components/site/CTASection";
 import { JsonLd } from "@/components/site/JsonLd";
 import { BRAND } from "@/content/brand";
+import { SITE_URL } from "@/content/site";
 
 /**
  * A vendor's public page.
@@ -27,7 +28,7 @@ import { BRAND } from "@/content/brand";
  * gets a domain a manual action. When reviews land, the field appears and both
  * the page and the markup pick it up.
  */
-const SITE = process.env.NEXT_PUBLIC_SITE_URL ?? "https://desi-nexus.com";
+const SITE = SITE_URL;
 
 type Params = { params: Promise<{ slug: string }> };
 
@@ -76,7 +77,7 @@ export default async function VendorPage({ params }: Params) {
   const monogram = vendor.businessName.trim().charAt(0).toUpperCase();
 
   return (
-    <>
+    <div className="shell">
       <JsonLd
         data={{
           "@context": "https://schema.org",
@@ -87,7 +88,7 @@ export default async function VendorPage({ params }: Params) {
           // Every field below is read off the profile. Nothing is defaulted:
           // an absent metro means no areaServed, not a guessed one.
           ...(metro
-            ? { areaServed: { "@type": "City", name: metro.name, containedInPlace: { "@type": "State", name: "Texas" } } }
+            ? { areaServed: { "@type": "City", name: metro.name, containedInPlace: { "@type": "State", name: STATE_NAMES[metro.state] } } }
             : {}),
           ...(vendor.languages.length > 0 ? { knowsLanguage: vendor.languages } : {}),
           ...(vendor.specialties.length > 0
@@ -211,6 +212,6 @@ export default async function VendorPage({ params }: Params) {
         Published {new Date(vendor.publishedAt).toLocaleDateString("en-US", { month: "long", year: "numeric" })}.{" "}
         <Link href="/for-vendors">Work as a vendor</Link>
       </p>
-    </>
+    </div>
   );
 }

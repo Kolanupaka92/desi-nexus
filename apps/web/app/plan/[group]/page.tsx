@@ -6,12 +6,13 @@ import { label } from "@/lib/format";
 import { Breadcrumbs } from "@/components/site/Breadcrumbs";
 import { CTASection } from "@/components/site/CTASection";
 import { Motif, motifFor, type MotifName } from "@/components/site/Motif";
+import { SITE_URL } from "@/content/site";
 
 /**
  * One page per occasion group: what this kind of function needs, and who works
  * it.
  *
- * Five of these, not forty. Crossing the five groups with the eight metros
+ * Five of these, not forty. Crossing the five groups with the ten metros
  * would generate forty pages whose only difference is a place name, which is
  * the definition of a doorway page and is treated as one. The metro dimension
  * already has its own pages, written around what is actually different about
@@ -25,7 +26,7 @@ import { Motif, motifFor, type MotifName } from "@/components/site/Motif";
  */
 export const dynamic = "force-static";
 
-const SITE = process.env.NEXT_PUBLIC_SITE_URL ?? "https://desi-nexus.com";
+const SITE = SITE_URL;
 
 export function generateStaticParams() {
   return PLANS.map((plan) => ({ group: plan.slug }));
@@ -62,12 +63,12 @@ export default async function PlanPage({ params }: Params) {
     .sort((a, b) => b.overlap.length - a.overlap.length);
 
   return (
-    <>
+    <div className="shell">
       <Breadcrumbs base={SITE} crumbs={[{ label: "Plan", href: "/#plan" }, { label: plan.title }]} />
 
       <section className="plan-hero">
         <div>
-          <span className="pill">Texas · {events.length} functions</span>
+          <span className="pill">{events.length} functions</span>
           <h1 style={{ marginTop: "var(--space-4)" }}>{plan.title}</h1>
           <p className="lede">{plan.lede}</p>
         </div>
@@ -144,6 +145,6 @@ export default async function PlanPage({ params }: Params) {
           secondary={{ href: "/hire", label: "Browse vendors first" }}
         />
       </div>
-    </>
+    </div>
   );
 }

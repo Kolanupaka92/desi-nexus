@@ -15,11 +15,12 @@
  * those is brand. Renaming them buys nothing and risks an outage, so a rebrand
  * must not touch them -- and a global find-and-replace on "desi_nexus" would.
  *
- * Of the 112 occurrences of the name in this repository, 26 are brand.
+ * Of the 112 occurrences of the old name in this repository, 26 were brand.
+ * Those 26 now read from here; the rest are roles and env vars and stay put.
  */
 export const BRAND = {
   /** As it appears in running text and in the <title>. */
-  name: "DESI-NEXUS",
+  name: "Utsav",
   /**
    * As it is set in the logo lockup.
    *
@@ -30,7 +31,7 @@ export const BRAND = {
    * One entry per word, and the length is the word count: `["UTSAV"]` is a
    * one-word name and draws no separator. Do not pad it to two entries.
    */
-  wordmark: ["DESI", "NEXUS"] as const,
+  wordmark: ["UTSAV"] as const,
   /** One line, for meta descriptions and the footer. */
-  tagline: "South Asian event talent in Texas",
+  tagline: "South Asian event talent in Texas, North Carolina and California",
 } as const;

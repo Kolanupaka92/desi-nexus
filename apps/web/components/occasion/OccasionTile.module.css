@@ -1,0 +1,136 @@
+/*
+ * The occasion tile.
+ *
+ * This component is the answer to "the site looks unfinished", and the answer
+ * is not a photograph.
+ *
+ * The old tile was a pale card with a line drawing in a tinted box. Thirteen
+ * of them shared one mandala, so five occasions and eight crafts were the same
+ * grey shape repeated, and the grid read as a page waiting for its images to
+ * arrive -- which it was. Photographs cannot be fetched into this repository
+ * (the egress gateway refuses every image host), so a design that depends on
+ * them is a design that ships broken.
+ *
+ * So the tile commits the other way. Each occasion owns a saturated colour
+ * drawn from what the function actually looks like, the type is set large
+ * enough to carry the tile on its own, and the jaali lattice runs behind it as
+ * texture. Five tiles, five colours, legible as five distinct things from
+ * across a room -- which is the job the photograph was there to do.
+ *
+ * Every occasion's --tile-ink is checked at >= 4.5:1 against its --tile-bg.
+ */
+
+.tile {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  min-height: 260px;
+  padding: var(--s6);
+  border-radius: var(--r-lg);
+  overflow: hidden;
+  isolation: isolate;
+  background: var(--tile-bg, var(--wine));
+  color: var(--tile-ink, #fff);
+  text-decoration: none;
+  transition:
+    transform var(--slow) var(--ease),
+    box-shadow var(--slow) var(--ease);
+}
+
+/*
+ * The lattice. A repeating conic gradient rather than an SVG file: it is the
+ * brand's own jaali geometry, it costs no request, and it scales with the
+ * tile instead of tiling at a fixed pixel size.
+ *
+ * Low opacity on purpose. It should read as woven texture at arm's length and
+ * disappear entirely behind the text, never as a pattern competing with it.
+ */
+.tile::before {
+  content: "";
+  position: absolute;
+  inset: -20%;
+  z-index: -1;
+  opacity: 0.16;
+  background-image:
+    repeating-linear-gradient(45deg, currentColor 0 1px, transparent 1px 22px),
+    repeating-linear-gradient(-45deg, currentColor 0 1px, transparent 1px 22px);
+  transition: transform var(--slow) var(--ease);
+}
+
+/* A wash from the bottom so long titles stay legible over the lattice
+   without dimming the colour that is doing the identifying. */
+.tile::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background: linear-gradient(to top, rgb(0 0 0 / 28%), transparent 62%);
+}
+
+.tile:hover {
+  transform: translateY(-3px);
+  box-shadow: var(--shadow-lg);
+  text-decoration: none;
+}
+
+.tile:hover::before { transform: rotate(4deg) scale(1.06); }
+
+.title {
+  font-family: var(--serif);
+  font-size: var(--step-3);
+  font-weight: 600;
+  line-height: 1.05;
+  margin: 0;
+  color: inherit;
+}
+
+.body {
+  margin: var(--s3) 0 0;
+  font-size: var(--step--1);
+  line-height: 1.5;
+  /* Deliberately not full opacity: the title has to win, and a second line of
+     equal weight is how a tile turns into a paragraph nobody reads. */
+  opacity: 0.88;
+  max-width: 32ch;
+}
+
+/*
+ * The count, top-right. Real data or nothing -- never a placeholder number.
+ * The brief for this project says not to fabricate figures, and a "120+
+ * vendors" badge on a marketplace that has not launched is exactly the kind
+ * of number that is fabricated by default.
+ */
+.count {
+  position: absolute;
+  top: var(--s5);
+  right: var(--s5);
+  font-size: var(--step--2);
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  padding: var(--s1) var(--s3);
+  border-radius: var(--r-full);
+  background: rgb(255 255 255 / 18%);
+  backdrop-filter: blur(4px);
+}
+
+.arrow {
+  margin-top: var(--s4);
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s2);
+  font-size: var(--step--1);
+  font-weight: 600;
+}
+
+.arrow svg { transition: transform var(--fast) var(--ease); }
+.tile:hover .arrow svg { transform: translateX(4px); }
+
+/* The first tile spans two columns on a wide grid, so the row has a focal
+   point instead of five equal rectangles. Below 700px it returns to one
+   column with everything else. */
+@media (min-width: 700px) {
+  .feature { grid-column: span 2; min-height: 320px; }
+  .feature .title { font-size: var(--step-4); }
+}

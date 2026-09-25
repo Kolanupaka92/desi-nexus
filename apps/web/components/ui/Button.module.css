@@ -1,0 +1,90 @@
+/*
+ * One button.
+ *
+ * The old stylesheet had `.btn`, `.btn.small`, `.btn.accent`, `.btn.secondary`
+ * and four page-local overrides that reached in to adjust padding, which is
+ * how the same "Post a brief" button ended up three different heights on three
+ * pages. Every variant is here now, and a page cannot add a fourth without
+ * editing this file.
+ */
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--s2);
+  /* 44px minimum, because WCAG 2.2 target size is not a suggestion and 43px
+     is the kind of miss nobody catches by eye. */
+  min-height: 44px;
+  padding: var(--s3) var(--s6);
+  border-radius: var(--r-full);
+  border: 1px solid transparent;
+  font-size: var(--step--1);
+  font-weight: 600;
+  line-height: 1;
+  text-decoration: none;
+  cursor: pointer;
+  white-space: nowrap;
+  transition:
+    background-color var(--fast) var(--ease),
+    border-color var(--fast) var(--ease),
+    color var(--fast) var(--ease),
+    transform var(--fast) var(--ease);
+}
+
+.btn:hover { text-decoration: none; }
+.btn:active { transform: translateY(1px); }
+
+.btn[disabled],
+.btn[aria-disabled="true"] {
+  opacity: 0.55;
+  cursor: not-allowed;
+  transform: none;
+}
+
+/* Marigold, and dark ink on it rather than white: white on #d98324 is 2.6:1
+   and fails. Dark ink on the same orange is 7.1:1. */
+.accent {
+  background: var(--marigold);
+  color: #2b1403;
+}
+.accent:hover { background: #c6741d; }
+
+.primary {
+  background: var(--wine);
+  color: #fff;
+}
+.primary:hover { background: var(--wine-mid); }
+
+.secondary {
+  background: var(--card);
+  color: var(--ink);
+  border-color: var(--line-strong);
+}
+.secondary:hover { background: var(--paper-warm); }
+
+/* For dark bands. Transparent until hovered so it reads as the second action
+   without being invisible. */
+.ghostLight {
+  background: rgb(255 255 255 / 8%);
+  color: #fff;
+  border-color: rgb(255 255 255 / 34%);
+}
+.ghostLight:hover {
+  background: rgb(255 255 255 / 16%);
+  border-color: rgb(255 255 255 / 55%);
+}
+
+.large {
+  min-height: 52px;
+  padding: var(--s4) var(--s7);
+  font-size: var(--step-0);
+}
+
+.small {
+  min-height: 44px;
+  padding: var(--s2) var(--s5);
+  font-size: var(--step--2);
+}
+
+.full { width: 100%; }

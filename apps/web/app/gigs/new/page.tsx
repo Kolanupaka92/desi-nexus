@@ -18,6 +18,7 @@ export default async function NewGigPage() {
   const data = await taxonomy();
 
   return (
+    <div className="shell">
     <div style={{ maxWidth: 680, margin: "40px auto" }}>
       <h1>Post a gig</h1>
       <p className="muted">
@@ -94,6 +95,7 @@ export default async function NewGigPage() {
       <p className="faint" style={{ marginTop: 12 }}>
         Saving creates a draft. Nothing is sent to vendors until you publish it.
       </p>
+    </div>
     </div>
   );
 }

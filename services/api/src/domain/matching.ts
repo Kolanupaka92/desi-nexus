@@ -11,14 +11,32 @@
  * unsupportable -- when a vendor asks why they stopped seeing Sangeet gigs, the
  * answer has to be a specific number, not a shrug.
  */
-import { tagAffinity, type CulturalTag, type Language } from "./taxonomy.js";
+import { EVENT_GROUPS, tagAffinity, type CulturalTag, type EventType, type Language } from "./taxonomy.js";
 import { quoteTravel, type LatLng, type TravelPolicy } from "./geo.js";
 import type { Cents } from "./money.js";
 import type { GigBrief } from "./gig.js";
 
+/** One function a vendor has worked, as they and the platform each report it. */
+export interface EventExperience {
+  readonly eventType: EventType;
+  /** What the vendor says. `undefined` means "I have worked this, no number". */
+  readonly claimedCount?: number;
+  /** What completed gigs prove. Never written by the vendor. */
+  readonly verifiedCount: number;
+}
+
 export interface Candidate {
   readonly userId: string;
   readonly specialties: readonly string[];
+  /**
+   * The functions this vendor has worked, and how many of each.
+   *
+   * Absent (rather than empty) means they have not filled it in yet, and the
+   * two must stay distinguishable: an empty list is a vendor saying "none of
+   * these", which should rank below an unknown, while `undefined` is a new
+   * vendor who should not be buried for not having got round to it.
+   */
+  readonly eventTypes?: readonly EventExperience[];
   readonly culturalTags: readonly CulturalTag[];
   readonly languages: readonly Language[];
   readonly homeBase: LatLng;
@@ -33,17 +51,42 @@ export interface Candidate {
   readonly payoutReady?: boolean;
 }
 
-/** Weights sum to 1.0; the assertion in the tests keeps that honest. */
+/**
+ * Weights sum to 1.0; the assertion in the tests keeps that honest.
+ *
+ * `eventFit` is new and takes the largest share, which is the point of adding
+ * it: "has worked a half-saree function" is a more specific and more useful
+ * answer than "knows Telugu traditions", and until now the score did not
+ * contain the first term at all.
+ *
+ * Where these came from: cultural drops 0.30 -> 0.24 because eventFit now
+ * carries the sharper half of the same question, and language drops 0.12 ->
+ * 0.07 because it was partly double-counting -- a vendor tagged
+ * `telugu_traditional` almost certainly speaks Telugu, so the two terms moved
+ * together and the pair was worth more than the pair deserved.
+ *
+ * eventFit + cultural = 0.52, a deliberate majority. The first split tried
+ * gave them 0.48, and the test asserting that occasion fit outweighs
+ * everything else put together failed -- correctly. At 0.48 a perfectly
+ * located, cheap, fast, well-reviewed generalist outranks a slightly further
+ * specialist, which is precisely the outcome this marketplace exists to
+ * prevent; a directory that sorts by postcode is what the incumbents already
+ * are. Distance and budget still matter inside the qualified pool, and
+ * out-of-radius candidates are removed by disqualify() before scoring rather
+ * than by being outweighed.
+ */
 export const WEIGHTS = {
-  cultural: 0.3,
-  proximity: 0.22,
-  budget: 0.16,
-  language: 0.12,
-  reputation: 0.12,
-  responsiveness: 0.08,
+  eventFit: 0.28,
+  cultural: 0.24,
+  proximity: 0.17,
+  budget: 0.12,
+  language: 0.07,
+  reputation: 0.07,
+  responsiveness: 0.05,
 } as const;
 
 export interface ScoreBreakdown {
+  readonly eventFit: number;
   readonly cultural: number;
   readonly proximity: number;
   readonly budget: number;
@@ -91,6 +134,86 @@ export function disqualify(candidate: Candidate, brief: GigBrief): string | unde
  * with no tags scores neutral rather than zero, so an untagged corporate gig
  * does not rank everyone identically at the bottom.
  */
+/*
+ * Which group each event belongs to, inverted once at module load.
+ *
+ * Built from EVENT_GROUPS rather than written out, so a new occasion added to
+ * the taxonomy is scored the day it is added instead of falling into the
+ * "no relation" bucket until somebody remembers this file exists.
+ */
+const GROUP_OF_EVENT: ReadonlyMap<string, string> = new Map(
+  Object.entries(EVENT_GROUPS).flatMap(([group, codes]) =>
+    (codes as readonly string[]).map((code) => [code, group] as const),
+  ),
+);
+
+/** Exact match floor, before any experience bonus. */
+const EVENT_EXACT_BASE = 0.75;
+/** A sibling function in the same group. */
+const EVENT_SIBLING = 0.55;
+/** They told us what they work, and this is not it. */
+const EVENT_UNRELATED = 0.15;
+/** They have not filled the list in. Same convention as responsivenessScore. */
+const EVENT_UNKNOWN = 0.5;
+/** Weighted count at which the experience bonus is fully earned. */
+const EVENT_EXPERIENCE_CEILING = 20;
+
+/**
+ * Has this vendor worked this function before?
+ *
+ * The term the score was missing. `gigs.event_type_code` was collected,
+ * validated and stored from the first migration and then never read by the
+ * matcher, so a host asking for a half-saree function was ranked entirely on
+ * category, tradition, distance, budget and reputation -- everything except
+ * the thing they actually asked.
+ *
+ * Four cases, and the distinction between the last two is the one that matters:
+ *
+ *   Worked it        -> 0.75, plus up to 0.25 for how much of it.
+ *   Worked a sibling -> 0.55. Someone with forty sangeets behind them can
+ *                       work a mehndi; the groups in EVENT_GROUPS are exactly
+ *                       that judgement, already made.
+ *   Says no          -> 0.15. Not zero: an unrelated specialist who is
+ *                       otherwise perfect should still be reachable when
+ *                       nobody in the metro has worked the function.
+ *   Said nothing     -> 0.5. A vendor who has not filled the list in must not
+ *                       be buried beneath one who filled it in and excluded
+ *                       this function, or the honest answer costs them work
+ *                       and nobody answers honestly twice.
+ */
+export function eventFitScore(
+  eventType: EventType,
+  worked: readonly EventExperience[] | undefined,
+): number {
+  if (worked === undefined) return EVENT_UNKNOWN;
+
+  const exact = worked.find((entry) => entry.eventType === eventType);
+  if (exact) {
+    /*
+     * Verified gigs count double.
+     *
+     * claimedCount is what the vendor typed and nothing checks it; verified is
+     * what completed on this platform. Weighting them equally would make the
+     * claim as good as the proof, and the first vendor to notice would type a
+     * larger number. Doubling is a deliberate, stated exchange rate rather
+     * than a fudge factor.
+     */
+    const weighted = exact.verifiedCount * 2 + (exact.claimedCount ?? 0);
+    const bonus = Math.min(1, weighted / EVENT_EXPERIENCE_CEILING) * (1 - EVENT_EXACT_BASE);
+    return EVENT_EXACT_BASE + bonus;
+  }
+
+  if (worked.length === 0) return EVENT_UNRELATED;
+
+  const group = GROUP_OF_EVENT.get(eventType);
+  if (group !== undefined) {
+    for (const entry of worked) {
+      if (GROUP_OF_EVENT.get(entry.eventType) === group) return EVENT_SIBLING;
+    }
+  }
+  return EVENT_UNRELATED;
+}
+
 export function culturalScore(required: readonly CulturalTag[], offered: readonly CulturalTag[]): number {
   if (required.length === 0) return 0.6;
   if (offered.length === 0) return 0;
@@ -169,7 +292,18 @@ export function scoreCandidate(candidate: Candidate, brief: GigBrief): MatchResu
     return {
       userId: candidate.userId,
       score: 0,
-      breakdown: { cultural: 0, proximity: 0, budget: 0, language: 0, reputation: 0, responsiveness: 0 },
+      // Every component zeroed, eventFit included. A rejected candidate is not
+      // ranked at all, so a non-zero component here would be a number shown
+      // beside a score of 0 with nothing behind it.
+      breakdown: {
+        eventFit: 0,
+        cultural: 0,
+        proximity: 0,
+        budget: 0,
+        language: 0,
+        reputation: 0,
+        responsiveness: 0,
+      },
       travelMiles: travel.miles,
       travelFeeCents: travel.totalCents,
       rejectedFor,
@@ -177,6 +311,7 @@ export function scoreCandidate(candidate: Candidate, brief: GigBrief): MatchResu
   }
 
   const breakdown: ScoreBreakdown = {
+    eventFit: eventFitScore(brief.eventType, candidate.eventTypes),
     cultural: culturalScore(brief.culturalTags, candidate.culturalTags),
     proximity: proximityScore(travel.miles),
     budget: budgetScore(candidate.startingRateCents, brief),
@@ -186,6 +321,7 @@ export function scoreCandidate(candidate: Candidate, brief: GigBrief): MatchResu
   };
 
   const weighted =
+    breakdown.eventFit * WEIGHTS.eventFit +
     breakdown.cultural * WEIGHTS.cultural +
     breakdown.proximity * WEIGHTS.proximity +
     breakdown.budget * WEIGHTS.budget +

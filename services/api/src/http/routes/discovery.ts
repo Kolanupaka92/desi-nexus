@@ -19,11 +19,63 @@ import {
   toPublicVendorProfile,
   type CrewProfile,
 } from "../../domain/users.js";
-import { rankCandidates, type Candidate } from "../../domain/matching.js";
+import { rankCandidates, type Candidate, type EventExperience } from "../../domain/matching.js";
 import { CREW_SPECIALTIES, CULTURAL_TAGS, EVENT_GROUPS, LANGUAGES, CUSTOMARY_CREW, isEventType } from "../../domain/taxonomy.js";
-import { TEXAS_METROS, quoteTravel } from "../../domain/geo.js";
+import { SERVICE_METROS, quoteTravel } from "../../domain/geo.js";
 import { isPgError, UNIQUE_VIOLATION } from "../../infra/postgres/db.js";
 import type { AppDeps } from "../../app.js";
+
+/**
+ * Parse the vendor's claimed event experience off an untrusted body.
+ *
+ * Strict on purpose. This is a public write endpoint, the rows carry a foreign
+ * key to event_types, and an unknown code would fail at the database with a
+ * constraint violation the caller cannot read -- a 500 where a 400 naming the
+ * bad code belongs.
+ *
+ * verifiedCount is deliberately NOT read from the body. It is the platform's
+ * number, derived from completed gigs; accepting it here would let any vendor
+ * PUT their own proof and make the verified/claimed distinction worthless the
+ * first time somebody looked at the request shape.
+ */
+function parseEventExperience(value: unknown): EventExperience[] {
+  if (!Array.isArray(value)) {
+    throw new HttpError(400, "invalid_request", "eventTypes must be an array");
+  }
+  const seen = new Set<string>();
+  return value.map((raw) => {
+    const entry = isObject(raw) ? (raw as Record<string, unknown>) : undefined;
+    const code = entry?.eventType;
+    if (typeof code !== "string" || !isEventType(code)) {
+      throw new HttpError(400, "invalid_request", `unknown event type: ${String(code)}`);
+    }
+    // The table's primary key would reject the duplicate anyway; saying so here
+    // costs one Set and turns a constraint violation into a readable message.
+    if (seen.has(code)) {
+      throw new HttpError(400, "invalid_request", `event type listed twice: ${code}`);
+    }
+    seen.add(code);
+
+    const claimed = entry?.claimedCount;
+    if (claimed !== undefined && claimed !== null) {
+      if (typeof claimed !== "number" || !Number.isInteger(claimed) || claimed < 0) {
+        throw new HttpError(
+          400,
+          "invalid_request",
+          `claimedCount for ${code} must be a whole number of zero or more`,
+        );
+      }
+    }
+
+    return {
+      eventType: code,
+      ...(typeof claimed === "number" ? { claimedCount: claimed } : {}),
+      // Never from the caller. Whatever is stored stays stored; the store does
+      // not write this column on a vendor save.
+      verifiedCount: 0,
+    };
+  });
+}
 
 export function registerDiscoveryRoutes(router: Router, deps: AppDeps): void {
   const { config, store, limiter } = deps;
@@ -38,7 +90,7 @@ export function registerDiscoveryRoutes(router: Router, deps: AppDeps): void {
       crewSpecialties: CREW_SPECIALTIES,
       culturalTags: CULTURAL_TAGS,
       languages: LANGUAGES,
-      metros: TEXAS_METROS,
+      metros: SERVICE_METROS,
     },
     headers: { "cache-control": "public, max-age=3600" },
   }));
@@ -68,6 +120,12 @@ export function registerDiscoveryRoutes(router: Router, deps: AppDeps): void {
       const profile: CrewProfile = {
         userId,
         specialties: specialties as CrewProfile["specialties"],
+        // Absent stays absent: a save that does not mention event types leaves
+        // the stored ones alone (see the store), so a client that has not been
+        // updated cannot silently wipe a vendor's history.
+        ...(body.eventTypes === undefined
+          ? {}
+          : { eventTypes: parseEventExperience(body.eventTypes) }),
         culturalTags: (Array.isArray(body.culturalTags) ? body.culturalTags : []) as CrewProfile["culturalTags"],
         startingRateCents,
         travelPolicy: (isObject(body.travelPolicy) ? body.travelPolicy : {}) as CrewProfile["travelPolicy"],
@@ -350,6 +408,12 @@ export async function toCandidate(
     // keeps search and booking from disagreeing.
     payoutReady: user ? canReceivePayouts(user, profile.stripeAccountId).ok : false,
     specialties: profile.specialties,
+    // The same trap as payoutReady above, and the reason that comment is
+    // worth its length: the score can only weigh what this adapter hands it.
+    // Omit this line and eventFitScore sees undefined for every vendor in
+    // every search, scores them all a flat 0.5, and the term contributes
+    // nothing while appearing in the breakdown as though it did.
+    ...(profile.eventTypes === undefined ? {} : { eventTypes: profile.eventTypes }),
     culturalTags: profile.culturalTags,
     languages: user?.languages ?? [],
     homeBase: user?.homeBase ?? { lat: 0, lng: 0 },

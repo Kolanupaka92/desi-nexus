@@ -23,15 +23,33 @@ export interface Metro {
   /** The API's metro id. */
   readonly code: string;
   readonly name: string;
+  /** Two-letter state code. The /hire index groups by it. */
+  readonly state: "TX" | "NC" | "CA";
   /** Where the community actually is, which is not the same as the city centre. */
   readonly cities: readonly string[];
   readonly blurb: string;
 }
 
+/**
+ * State codes to full names, for structured data.
+ *
+ * schema.org wants "North Carolina", not "NC". Both pages that emit a
+ * containedInPlace had "Texas" written into them as a literal, which was true
+ * while the footprint was one state and became a false claim about a Charlotte
+ * vendor's location the moment it was not -- the kind of error Google acts on
+ * and no visitor ever sees.
+ */
+export const STATE_NAMES: Readonly<Record<Metro["state"], string>> = {
+  TX: "Texas",
+  NC: "North Carolina",
+  CA: "California",
+};
+
 export const METROS: readonly Metro[] = [
   {
     slug: "dallas-fort-worth",
     code: "dfw",
+    state: "TX",
     name: "Dallas-Fort Worth",
     cities: ["Frisco", "Plano", "Irving", "Richardson", "Allen", "McKinney", "Carrollton"],
     blurb:
@@ -40,6 +58,7 @@ export const METROS: readonly Metro[] = [
   {
     slug: "houston",
     code: "hou",
+    state: "TX",
     name: "Greater Houston",
     cities: ["Sugar Land", "Katy", "Pearland", "Missouri City", "Stafford", "Cypress"],
     blurb:
@@ -48,6 +67,7 @@ export const METROS: readonly Metro[] = [
   {
     slug: "austin",
     code: "aus",
+    state: "TX",
     name: "Austin",
     cities: ["Round Rock", "Cedar Park", "Pflugerville", "Leander"],
     blurb:
@@ -56,42 +76,65 @@ export const METROS: readonly Metro[] = [
   {
     slug: "san-antonio",
     code: "sat",
+    state: "TX",
     name: "San Antonio",
     cities: ["Stone Oak", "Schertz", "New Braunfels"],
     blurb:
       "A smaller community with a thinner local vendor bench, so San Antonio functions often bring an artist down from Austin. That drive is priced into the quote up front rather than discovered afterwards.",
   },
   {
-    slug: "rio-grande-valley",
-    code: "rgv",
-    name: "Rio Grande Valley",
-    cities: ["McAllen", "Edinburg", "Harlingen", "Brownsville"],
+    slug: "raleigh-durham",
+    code: "rdu",
+    name: "Raleigh-Durham",
+    state: "NC",
+    cities: ["Cary", "Morrisville", "Apex", "Durham", "Chapel Hill", "Holly Springs"],
     blurb:
-      "The Valley's South Asian community is small, tight-knit and largely medical. Vendors are few enough locally that most functions draw from San Antonio or Houston, which makes an honest travel quote the difference between a booking and a surprise.",
+      "The Triangle's South Asian community is concentrated in Cary and Morrisville, tightly enough that a vendor who works one of them works most of them. The calendar is driven by the research and tech employers around RTP, which means a lot of weekday-evening pujas and a Saturday season that competes directly with Charlotte for the same touring artists.",
   },
   {
-    slug: "el-paso",
-    code: "elp",
-    name: "El Paso",
-    cities: ["El Paso", "Horizon City"],
+    slug: "charlotte",
+    code: "clt",
+    name: "Charlotte",
+    state: "NC",
+    cities: ["Ballantyne", "Matthews", "Huntersville", "Concord", "Waxhaw"],
     blurb:
-      "El Paso is closer to Phoenix than to Dallas, and the vendor pool reflects that isolation. Functions here plan further ahead by necessity, and overnight stays are the norm rather than the exception for anyone travelling in.",
+      "Spread south and north of the city rather than gathered in one corridor, so travel between the venue, the getting-ready location and the reception is usually a real distance rather than a few blocks. Worth agreeing the travel fee before the day, not after.",
   },
   {
-    slug: "corpus-christi",
-    code: "cc",
-    name: "Corpus Christi",
-    cities: ["Corpus Christi", "Portland"],
+    slug: "greensboro",
+    code: "gso",
+    name: "Greensboro",
+    state: "NC",
+    cities: ["Greensboro", "High Point", "Jamestown"],
     blurb:
-      "A coastal community small enough that most families know each other's vendors by name. Bookings tend to come by referral, and the gap this fills is mainly reaching artists in San Antonio and Houston who would happily make the drive.",
+      "A smaller market than the Triangle or Charlotte, and vendors here often cover all three. That makes availability the binding constraint rather than choice: the artist you want may be an hour away on a date that is already spoken for.",
   },
   {
-    slug: "lubbock",
-    code: "lbb",
-    name: "Lubbock",
-    cities: ["Lubbock"],
+    slug: "bay-area",
+    code: "bay",
+    name: "Bay Area",
+    state: "CA",
+    cities: ["Fremont", "Milpitas", "Sunnyvale", "Cupertino", "Santa Clara", "San Ramon", "Dublin", "San Francisco", "San Jose"],
     blurb:
-      "Largely a student and medical community around Texas Tech. Functions are smaller and often organised at shorter notice, which puts a premium on knowing quickly who is genuinely available rather than who might reply.",
+      "One metro covering San Francisco through San Jose, because the community that books these functions runs continuously down the East Bay and into the South Bay rather than clustering at either end. Fremont and Milpitas are the centre of gravity. Venue costs are the highest in the footprint, which tends to compress what is left for everything else — worth setting the budget range honestly before you post.",
+  },
+  {
+    slug: "los-angeles",
+    code: "lax",
+    name: "Los Angeles",
+    state: "CA",
+    cities: ["Artesia", "Cerritos", "Torrance", "Northridge", "Chino Hills", "Diamond Bar"],
+    blurb:
+      "Artesia's Pioneer Boulevard is the oldest South Asian commercial district on the West Coast, and a great deal of the region's bridal trade still orbits it. LA distances are the trap: a vendor twenty miles away on the map can be ninety minutes away at 4pm on a Friday, so a 6am call time is a different commitment here than anywhere else in the footprint.",
+  },
+  {
+    slug: "san-diego",
+    code: "sd",
+    name: "San Diego",
+    state: "CA",
+    cities: ["Mira Mesa", "Carmel Valley", "Rancho Peñasquitos", "4S Ranch", "Scripps Ranch"],
+    blurb:
+      "Concentrated in the northern suburbs rather than downtown. A smaller pool than LA, and enough functions pull artists down from Orange County and LA that booking early matters more here than the size of the market suggests.",
   },
 ];
 
@@ -324,39 +367,45 @@ export const MATCH_WEIGHTS: ReadonlyArray<{
   readonly why: string;
 }> = [
   {
+    key: "eventFit",
+    label: "Worked your function",
+    weight: 0.28,
+    why: "Whether they have worked a half-saree function, a griha pravesham, a nikah — the thing you are actually planning. Someone who has run forty sangeets knows where the bottleneck is at hour three; someone who has photographed forty corporate launches does not, however good they are.",
+  },
+  {
     key: "cultural",
     label: "Cultural fit",
-    weight: 0.3,
-    why: "Whether they have actually worked your tradition. A MUA who does South Indian bridal is not interchangeable with one who does Punjabi Sikh bridal, and booking the wrong one is the most common way a function is ruined.",
+    weight: 0.24,
+    why: "Whether they know your tradition. A MUA who does South Indian bridal is not interchangeable with one who does Punjabi Sikh bridal, and booking the wrong one is the most common way a function is ruined.",
   },
   {
     key: "proximity",
     label: "Distance",
-    weight: 0.22,
+    weight: 0.17,
     why: "Measured from the venue's real address, not a city centre. It decides what the drive costs and whether they can make a 6am call time.",
   },
   {
     key: "budget",
     label: "Budget fit",
-    weight: 0.16,
+    weight: 0.12,
     why: "Their rate against your range. Being shown someone at triple your budget wastes an enquiry for both of you.",
   },
   {
     key: "language",
     label: "Language",
-    weight: 0.12,
+    weight: 0.07,
     why: "What they speak on the day, with your family and the other vendors — not what is on their profile.",
   },
   {
     key: "reputation",
     label: "Track record",
-    weight: 0.12,
+    weight: 0.07,
     why: "Completed bookings and how they were reviewed. Deliberately not the heaviest weight, or nobody new could ever get their first booking.",
   },
   {
     key: "responsiveness",
     label: "Replies fast",
-    weight: 0.08,
+    weight: 0.05,
     why: "How quickly they answer. Small, because a slow reply from the right artist still beats a fast one from the wrong one.",
   },
 ];
@@ -370,7 +419,7 @@ export const MATCH_WEIGHTS: ReadonlyArray<{
  * not the crew list for the next one.
  *
  * Five pages, not five hundred. The temptation with a taxonomy this size is to
- * cross it with the eight metros and generate forty near-identical pages, and
+ * cross it with the ten metros and generate fifty near-identical pages, and
  * every one of them would be thin: the thing that differs between a Sangeet in
  * Plano and a Sangeet in Katy is the travel quote, which is a number on the
  * vendor's page, not an article. What genuinely differs -- what a wedding needs

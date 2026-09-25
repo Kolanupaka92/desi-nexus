@@ -34,6 +34,16 @@ const brief: GigBrief = {
 
 function candidate(overrides: Partial<Candidate> = {}): Candidate {
   return {
+    /*
+     * The baseline vendor has worked this function.
+     *
+     * Added when eventFit entered the score. Without it this fixture's
+     * "exactly matched" vendor scored 85 rather than 90+, and correctly so:
+     * a vendor who has not said whether they have ever worked a half-saree
+     * function is not an exact match for one, whatever else lines up. The
+     * fixture claims to describe a perfect candidate, so it has to say.
+     */
+    eventTypes: [{ eventType: "half_saree_function", claimedCount: 40, verifiedCount: 0 }],
     userId: "usr_1",
     specialties: ["mua"],
     culturalTags: ["telugu_traditional"],
@@ -99,7 +109,43 @@ test("adjacent cultural styles earn partial credit, unrelated ones none", () => 
 test("cultural fit is what separates two otherwise identical vendors", () => {
   const exact = scoreCandidate(candidate({ userId: "a" }), brief);
   const wrong = scoreCandidate(candidate({ userId: "b", culturalTags: ["punjabi_sikh"] }), brief);
-  assert.ok(exact.score - wrong.score >= 25, `expected a wide gap, got ${exact.score} vs ${wrong.score}`);
+  /*
+   * Threshold lowered from 25 to 20 when eventFit entered the score, and the
+   * reason is arithmetic rather than convenience: cultural now carries 0.22 of
+   * the total, so the widest gap a purely cultural difference can open is 22
+   * points. Asserting 25 would require cultural to weigh at least 0.25 and
+   * was, after the rebalance, not a test of behaviour but a test that the
+   * weight had not moved -- which is what the drift test against the published
+   * weights is for.
+   *
+   * What this asserts is unchanged: getting the tradition wrong is decisive on
+   * its own. Twenty points moves a vendor from the top of the list to the
+   * middle of it.
+   */
+  assert.ok(
+    exact.score - wrong.score >= 20,
+    `expected a wide gap, got ${exact.score} vs ${wrong.score}`,
+  );
+});
+
+test("occasion fit outweighs everything else put together", () => {
+  /*
+   * The thesis, as an assertion. eventFit plus cultural must carry more of the
+   * score than distance, budget, language, reputation and speed combined --
+   * otherwise this is a directory that sorts by postcode, which is what the
+   * incumbents already are.
+   */
+  const occasion = WEIGHTS.eventFit + WEIGHTS.cultural;
+  const everythingElse =
+    WEIGHTS.proximity +
+    WEIGHTS.budget +
+    WEIGHTS.language +
+    WEIGHTS.reputation +
+    WEIGHTS.responsiveness;
+  assert.ok(
+    occasion > everythingElse,
+    `occasion fit is ${occasion} against ${everythingElse} for the rest`,
+  );
 });
 
 test("proximity decays with distance rather than stepping at a metro line", () => {

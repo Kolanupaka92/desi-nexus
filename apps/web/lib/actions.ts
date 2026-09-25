@@ -209,6 +209,28 @@ export async function createCrewProfileAction(_prev: FormState, form: FormData):
       body: {
         specialties: form.getAll("specialties").map(String),
         culturalTags: form.getAll("culturalTags").map(String),
+        /*
+         * Always sent, even when empty.
+         *
+         * The API leaves stored event types alone when the field is absent, so
+         * that a client written before it existed cannot wipe a vendor's
+         * history. This form does know about the field, so an empty selection
+         * here is a vendor saying "none of these" and has to be sent as [] --
+         * omitting it would make unticking every box do nothing, with a
+         * success message saying it had saved.
+         *
+         * No claimedCount yet: the form asks which functions, not how many.
+         * The API accepts the count, and the column takes it, so adding a
+         * number input later is a form change rather than a schema one.
+         */
+        eventTypes: form
+          .getAll("eventTypes")
+          // Filtered rather than String()-ed: getAll returns string | File, and
+          // stringifying a File yields "[object Object]", which the API would
+          // then reject as an unknown event type. Dropping a non-string is the
+          // honest handling -- there is no event type it could have meant.
+          .filter((code): code is string => typeof code === "string")
+          .map((eventType) => ({ eventType })),
         startingRateCents: cents(form, "startingRate"),
         yearsExperience: Number(str(form, "yearsExperience")) || 0,
       },

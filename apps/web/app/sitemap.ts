@@ -1,5 +1,6 @@
 import type { MetadataRoute } from "next";
 import { METROS, PLANS, SPECIALITIES } from "@/content/seo";
+import { SITE_URL } from "@/content/site";
 
 /**
  * Every indexable URL, generated from the same content the pages are.
@@ -8,7 +9,7 @@ import { METROS, PLANS, SPECIALITIES } from "@/content/seo";
  * sitemap listing URLs that 404 is worse than none at all -- it is the clearest
  * signal available that the site does not know its own shape.
  */
-const BASE = process.env.NEXT_PUBLIC_SITE_URL ?? "https://desi-nexus.com";
+const BASE = SITE_URL;
 
 export default function sitemap(): MetadataRoute.Sitemap {
   const now = new Date();

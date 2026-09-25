@@ -27,7 +27,7 @@ import { field, isString, rateLimit } from "../middleware.js";
 import { ValidationError } from "../../domain/users.js";
 import { normaliseEnquiry, validateEnquiry } from "../../domain/enquiry.js";
 import { isEventType } from "../../domain/taxonomy.js";
-import { TEXAS_METROS } from "../../domain/geo.js";
+import { SERVICE_METROS } from "../../domain/geo.js";
 import { TOPICS } from "../../events/bus.js";
 import type { AppDeps } from "../../app.js";
 
@@ -78,7 +78,7 @@ export function registerEnquiryRoutes(router: Router, deps: AppDeps): void {
       }
       if (
         enquiry.metroCode !== undefined &&
-        !TEXAS_METROS.some((metro) => metro.id === enquiry.metroCode)
+        !SERVICE_METROS.some((metro) => metro.id === enquiry.metroCode)
       ) {
         delete (enquiry as { metroCode?: string }).metroCode;
       }

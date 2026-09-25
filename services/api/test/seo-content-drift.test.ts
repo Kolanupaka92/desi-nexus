@@ -24,7 +24,7 @@ import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, resolve } from "node:path";
 import { CREW_SPECIALTIES, EVENT_GROUPS, EVENT_TYPES } from "../src/domain/taxonomy.js";
-import { TEXAS_METROS } from "../src/domain/geo.js";
+import { SERVICE_METROS } from "../src/domain/geo.js";
 import { WEIGHTS } from "../src/domain/matching.js";
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -63,14 +63,14 @@ test("the pages parse into something worth checking", () => {
 });
 
 test("every metro the pages claim to serve is a real metro", () => {
-  const known = new Set(TEXAS_METROS.map((metro) => metro.id));
+  const known = new Set(SERVICE_METROS.map((metro) => metro.id));
   const unknown = pageMetroCodes.filter((code) => !known.has(code));
   assert.deepEqual(unknown, [], "on a public page but unknown to the service");
 });
 
 test("every metro the service serves has a page", () => {
   const covered = new Set(pageMetroCodes);
-  const missing = TEXAS_METROS.map((metro) => metro.id).filter((id) => !covered.has(id));
+  const missing = SERVICE_METROS.map((metro) => metro.id).filter((id) => !covered.has(id));
   assert.deepEqual(missing, [], "bookable but unreachable from search");
 });
 
@@ -163,7 +163,12 @@ const publishedWeights = (() => {
   assert.notEqual(start, -1, "seo.ts no longer publishes MATCH_WEIGHTS");
   const block = content.slice(start);
   const weights: Record<string, number> = {};
-  for (const match of block.matchAll(/key:\s*"([a-z]+)",[\s\S]*?weight:\s*([0-9.]+),/g)) {
+  // [a-zA-Z], not [a-z]. Every weight happened to be one lowercase word until
+  // `eventFit` arrived, and a camelCase key silently fell out of this map --
+  // which showed up as a published sum of 0.74 rather than as "eventFit is
+  // missing", because a key that never matches cannot be reported as absent by
+  // the thing that failed to match it.
+  for (const match of block.matchAll(/key:\s*"([a-zA-Z]+)",[\s\S]*?weight:\s*([0-9.]+),/g)) {
     weights[match[1] as string] = Number(match[2]);
   }
   return weights;

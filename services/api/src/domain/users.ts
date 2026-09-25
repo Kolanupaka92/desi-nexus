@@ -18,6 +18,7 @@ import {
 import { type LatLng, nearestMetro, withinPilotFootprint } from "./geo.js";
 import type { TravelPolicy } from "./geo.js";
 import type { Cents } from "./money.js";
+import type { EventExperience } from "./matching.js";
 
 export type Role = "host" | "crew" | "creator" | "admin";
 
@@ -74,6 +75,12 @@ export interface HostProfile {
 export interface CrewProfile {
   readonly userId: string;
   specialties: CrewSpecialty[];
+  /**
+   * The functions this vendor has worked. Optional, and the distinction from
+   * an empty array is load-bearing: undefined is "not filled in yet" and
+   * scores neutral, [] is "none of these" and scores low. See eventFitScore.
+   */
+  eventTypes?: EventExperience[];
   culturalTags: CulturalTag[];
   /** Base rate used for budget filtering before a formal offer exists. */
   startingRateCents: Cents;

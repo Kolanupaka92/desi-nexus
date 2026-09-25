@@ -17,7 +17,7 @@ export const dynamic = "force-static";
 export const metadata: Metadata = {
   title: "For makeup artists, photographers and henna artists",
   description:
-    "Get booked for South Asian functions across Texas. Payment is held in escrow before the day, travel is quoted round trip, and you are ranked on what you actually specialise in.",
+    "Get booked for South Asian functions in Texas, North Carolina and California. Payment is held in escrow before the day, travel is quoted round trip, and you are ranked on what you actually specialise in.",
   alternates: { canonical: "/for-vendors" },
   openGraph: {
     title: `Get booked for the functions you actually specialise in · ${BRAND.name}`,
@@ -48,14 +48,14 @@ const PROMISES = [
 
 export default function ForVendorsPage() {
   return (
-    <>
+    <div className="shell">
       <section style={{ padding: "40px 0 8px", maxWidth: 760 }}>
         <span className="pill">Now onboarding crew &amp; creators</span>
         <h1 style={{ marginTop: "var(--space-4)" }}>
           Get booked for the functions you actually specialise in.
         </h1>
         <p className="lede">
-          {BRAND.name} matches South Asian event work across Texas on cultural fit first. If you do
+          {BRAND.name} matches South Asian event work on the function itself, not the category. If you do
           Telugu bridal, you are shown Telugu bridal &mdash; not every &ldquo;wedding
           makeup&rdquo; lead within fifty miles.
         </p>
@@ -122,6 +122,6 @@ export default function ForVendorsPage() {
           secondary={{ href: "/gigs", label: "See open gigs" }}
         />
       </div>
-    </>
+    </div>
   );
 }

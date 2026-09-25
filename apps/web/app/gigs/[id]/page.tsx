@@ -36,6 +36,7 @@ export default async function GigPage({ params }: { params: Promise<{ id: string
   const rows = isOwner ? await applicants(id).then((r) => r.applications).catch(() => []) : [];
 
   return (
+    <div className="shell">
     <div style={{ padding: "36px 0", maxWidth: 800 }}>
       <div className="spread">
         <div>
@@ -165,6 +166,7 @@ export default async function GigPage({ params }: { params: Promise<{ id: string
           )}
         </section>
       )}
+    </div>
     </div>
   );
 }
