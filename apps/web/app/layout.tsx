@@ -8,6 +8,7 @@ import { Footer } from "@/components/site/Footer";
 import { JsonLd } from "@/components/site/JsonLd";
 import "./globals.css";
 import { SITE_URL } from "@/content/site";
+import { METROS, STATE_NAMES } from "@/content/seo";
 
 /**
  * Absolute base for canonicals and Open Graph URLs.
@@ -18,6 +19,9 @@ import { SITE_URL } from "@/content/site";
  * declares itself canonical and splits the ranking it was meant to consolidate.
  */
 const SITE = SITE_URL;
+
+/** Every state with at least one served metro, in the order METROS lists them. */
+const SERVED_STATES = [...new Set(METROS.map((metro) => STATE_NAMES[metro.state]))];
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE),
@@ -65,10 +69,15 @@ export default async function RootLayout({ children }: { children: React.ReactNo
                 url: SITE,
                 description:
                   "A marketplace connecting South Asian event hosts in Texas, North Carolina and California with the crew and creators who work their events.",
-                areaServed: {
-                  "@type": "State",
-                  name: "Texas",
-                },
+                /*
+                 * Derived from the metros served, never typed. This was a literal
+                 * `{ "@type": "State", name: "Texas" }` that survived the move to
+                 * three states -- the description beside it said "Texas, North
+                 * Carolina and California" while the one field Google reads for
+                 * local relevance said Texas alone. A list computed from METROS
+                 * cannot fall behind it.
+                 */
+                areaServed: SERVED_STATES.map((name) => ({ "@type": "State", name })),
               },
               {
                 "@type": "WebSite",

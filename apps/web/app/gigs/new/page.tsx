@@ -1,10 +1,11 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
-import { taxonomy, me, ApiCallError } from "@/lib/api";
+import { taxonomy, me, ApiCallError, ApiUnavailableError } from "@/lib/api";
 import { createGigAction } from "@/lib/actions";
 import { ActionForm } from "@/components/Form";
 import { CheckGroup } from "@/components/Checks";
 import { EventPicker } from "./EventPicker";
+import { ServiceUnavailable } from "@/components/site/ServiceUnavailable";
 
 export const metadata: Metadata = { title: "Post a gig" };
 
@@ -12,6 +13,11 @@ export default async function NewGigPage() {
   try {
     await me();
   } catch (error) {
+    // Unreachable is not "signed out": sending this visitor to /login would
+    // only fail again there. Say what is actually wrong, with a way out.
+    if (error instanceof ApiUnavailableError) {
+      return <ServiceUnavailable title="We can’t take briefs online right now" />;
+    }
     if (error instanceof ApiCallError && error.status === 401) redirect("/login");
     throw error;
   }

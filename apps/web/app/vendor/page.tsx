@@ -1,10 +1,11 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
-import { ApiCallError, apiFetch, me, taxonomy } from "@/lib/api";
+import { ApiCallError, apiFetch, me, taxonomy, ApiUnavailableError } from "@/lib/api";
 import { usd } from "@/lib/format";
 import { createCrewProfileAction } from "@/lib/actions";
 import { ActionForm } from "@/components/Form";
 import { CheckGroup } from "@/components/Checks";
+import { ServiceUnavailable } from "@/components/site/ServiceUnavailable";
 
 export const metadata: Metadata = { title: "Your vendor profile" };
 
@@ -22,6 +23,11 @@ export default async function VendorPage() {
   try {
     profile = await me();
   } catch (error) {
+    // Unreachable is not "signed out": sending this visitor to /login would
+    // only fail again there. Say what is actually wrong, with a way out.
+    if (error instanceof ApiUnavailableError) {
+      return <ServiceUnavailable title="Your vendor profile can’t load right now" />;
+    }
     if (error instanceof ApiCallError && error.status === 401) redirect("/login");
     throw error;
   }

@@ -9,7 +9,7 @@
  */
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
-import { apiFetch, ApiCallError } from "./api";
+import { apiFetch, ApiCallError, ApiUnavailableError } from "./api";
 import { storeSession, type TokenPair } from "./session";
 
 export interface FormState {
@@ -32,9 +32,12 @@ function explain(error: unknown): FormState {
         : error.message;
     return { error: message, ...(details?.field ? { field: details.field } : {}) };
   }
-  // TimeoutError is what AbortSignal.timeout throws; it is the same outage to
-  // the person reading the page as a refused connection.
-  if (error instanceof Error && /fetch failed|ECONNREFUSED|timed out|aborted/i.test(error.message)) {
+  // A refused connection, a DNS failure and a timeout are one outage to the
+  // person reading the page. apiFetch folds all three into this one type, so
+  // the check is on what happened rather than on how Node chose to word it --
+  // the regex this replaced would have silently stopped matching the day the
+  // runtime changed an error message.
+  if (error instanceof ApiUnavailableError) {
     return { error: "Cannot reach the booking service right now. Please try again in a moment." };
   }
   return { error: "Something went wrong. Please try again." };
