@@ -8,6 +8,7 @@ import { Breadcrumbs } from "@/components/site/Breadcrumbs";
 import { CTASection } from "@/components/site/CTASection";
 import { JsonLd } from "@/components/site/JsonLd";
 import { BRAND } from "@/content/brand";
+import { SITE_URL } from "@/content/site";
 
 /**
  * A vendor's public page.
@@ -27,7 +28,7 @@ import { BRAND } from "@/content/brand";
  * gets a domain a manual action. When reviews land, the field appears and both
  * the page and the markup pick it up.
  */
-const SITE = process.env.NEXT_PUBLIC_SITE_URL ?? "https://desi-nexus.com";
+const SITE = SITE_URL;
 
 type Params = { params: Promise<{ slug: string }> };
 

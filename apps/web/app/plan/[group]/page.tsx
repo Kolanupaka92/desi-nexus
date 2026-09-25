@@ -6,6 +6,7 @@ import { label } from "@/lib/format";
 import { Breadcrumbs } from "@/components/site/Breadcrumbs";
 import { CTASection } from "@/components/site/CTASection";
 import { Motif, motifFor, type MotifName } from "@/components/site/Motif";
+import { SITE_URL } from "@/content/site";
 
 /**
  * One page per occasion group: what this kind of function needs, and who works
@@ -25,7 +26,7 @@ import { Motif, motifFor, type MotifName } from "@/components/site/Motif";
  */
 export const dynamic = "force-static";
 
-const SITE = process.env.NEXT_PUBLIC_SITE_URL ?? "https://desi-nexus.com";
+const SITE = SITE_URL;
 
 export function generateStaticParams() {
   return PLANS.map((plan) => ({ group: plan.slug }));

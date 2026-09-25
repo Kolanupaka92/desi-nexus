@@ -7,6 +7,7 @@ import { Breadcrumbs } from "@/components/site/Breadcrumbs";
 import { JsonLd } from "@/components/site/JsonLd";
 import { CTASection } from "@/components/site/CTASection";
 import { BRAND } from "@/content/brand";
+import { SITE_URL } from "@/content/site";
 
 /**
  * The page a search actually lands on: one speciality, in one metro.
@@ -17,7 +18,7 @@ import { BRAND } from "@/content/brand";
  */
 export const dynamic = "force-static";
 
-const SITE = process.env.NEXT_PUBLIC_SITE_URL ?? "https://desi-nexus.com";
+const SITE = SITE_URL;
 
 export function generateStaticParams() {
   return METROS.flatMap((metro) =>

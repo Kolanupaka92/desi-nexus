@@ -5,11 +5,12 @@ import { METROS, SPECIALITIES, metroBySlug } from "@/content/seo";
 import { Breadcrumbs } from "@/components/site/Breadcrumbs";
 import { CTASection } from "@/components/site/CTASection";
 import { BRAND } from "@/content/brand";
+import { SITE_URL } from "@/content/site";
 
 /** The metro hub: every speciality we cover, for one place. */
 export const dynamic = "force-static";
 
-const SITE = process.env.NEXT_PUBLIC_SITE_URL ?? "https://desi-nexus.com";
+const SITE = SITE_URL;
 
 export function generateStaticParams() {
   return METROS.map((metro) => ({ metro: metro.slug }));

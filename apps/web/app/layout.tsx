@@ -7,6 +7,7 @@ import { Header } from "@/components/site/Header";
 import { Footer } from "@/components/site/Footer";
 import { JsonLd } from "@/components/site/JsonLd";
 import "./globals.css";
+import { SITE_URL } from "@/content/site";
 
 /**
  * Absolute base for canonicals and Open Graph URLs.
@@ -16,7 +17,7 @@ import "./globals.css";
  * served the page, so a preview deployment or an apex/www mismatch quietly
  * declares itself canonical and splits the ranking it was meant to consolidate.
  */
-const SITE = process.env.NEXT_PUBLIC_SITE_URL ?? "https://desi-nexus.com";
+const SITE = SITE_URL;
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE),

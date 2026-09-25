@@ -42,10 +42,69 @@ CREATE EXTENSION IF NOT EXISTS postgis WITH SCHEMA public;
 # Direct connection (not the pooler) for DDL.
 read -rs PGPASSWORD && export PGPASSWORD   # not inline: shell history keeps it
 export PGURL="postgresql://postgres@db.PROJECT.supabase.co:5432/postgres"
-psql "$PGURL" -f db/migrations/001_init.sql
-psql "$PGURL" -f db/migrations/002_seed_reference_data.sql
-psql "$PGURL" -f db/migrations/003_app_role.sql
+# ON_ERROR_STOP: without it psql prints the error and carries on to the next
+# statement, so a failed CREATE TABLE is followed by grants on a table that
+# does not exist and the run still exits 0.
+# --single-transaction: without it each statement commits on its own, so a
+# migration that fails halfway leaves its first half applied and cannot simply
+# be run again. With it, a failure rolls the whole file back.
+for m in \
+  001_init.sql \
+  002_seed_reference_data.sql \
+  003_app_role.sql \
+  004_rls_write_policies.sql \
+  005_vendor_public_profiles.sql \
+  006_enquiries.sql \
+  007_crew_event_links.sql \
+  008_metro_footprint.sql
+do
+  psql "$PGURL" -v ON_ERROR_STOP=1 --single-transaction -f "db/migrations/$m" || { echo "stopped at $m"; break; }
+done
 ```
+
+**Apply each migration exactly once, in order.** This list previously stopped at
+003 -- 004 was described below but never in the commands, and 005 to 008 were
+not mentioned at all -- so a database stood up from this page would be missing
+the write policies, vendor profiles, enquiries, the event-history table the
+match engine ranks on, and seven of the ten metros the site advertises.
+
+Not every migration is safe to re-run, and that decides what to do on a
+database that already exists. This table is **measured, not read**: each file
+was applied to a fresh PostGIS 16 database, then applied a second time, and the
+second run's outcome is recorded here. Reading the SQL got three of the eight
+wrong -- 004 has eight `CREATE` statements and no `IF NOT EXISTS` on any of
+them, and re-runs cleanly anyway.
+
+| Migration | Re-runnable | Second run |
+|---|---|---|
+| 001 | **No** | `type "user_role" already exists` |
+| 002 | Yes | `ON CONFLICT DO NOTHING` -- safe, but it never *corrects* a row, which is why 008 does not rely on it |
+| 003 | Yes | role guarded by `duplicate_object`; grants and revokes are idempotent |
+| 004 | Yes | |
+| 005 | **No** | `column "slug" of relation "crew_profiles" already exists` |
+| 006 | **No** | `relation "enquiries" already exists` |
+| 007 | Yes | `IF NOT EXISTS` throughout |
+| 008 | Yes | `ON CONFLICT (code) DO UPDATE`, so a re-run converges on the right centres and radii |
+
+Re-running a **No** is not destructive -- with `ON_ERROR_STOP` and
+`--single-transaction` it rolls back and changes nothing -- but it does stop the
+loop, so everything after it silently goes unapplied. That is the failure to
+watch for.
+
+So on an existing database, find out where it stopped and apply only what
+follows -- for example, one that predates the event-fit work needs just:
+
+```bash
+psql "$PGURL" -v ON_ERROR_STOP=1 --single-transaction -f db/migrations/007_crew_event_links.sql
+psql "$PGURL" -v ON_ERROR_STOP=1 --single-transaction -f db/migrations/008_metro_footprint.sql
+```
+
+008 **deactivates** El Paso, the Rio Grande Valley, Corpus Christi and Lubbock
+rather than deleting them. `users.metro_code` and `gigs.metro_code` reference
+`metros(code)` with no `ON DELETE`, so a `DELETE` fails on the first account in
+one of those metros -- or, worse, succeeds on an empty table today and starts
+failing the day somebody there signs up. Deactivated rows keep every existing
+reference readable; they simply cannot be chosen for anything new.
 
 `004_rls_write_policies.sql` adds the write policies and creates a second role,
 `desi_nexus_system`, for the paths that belong to no user -- the Stripe webhook

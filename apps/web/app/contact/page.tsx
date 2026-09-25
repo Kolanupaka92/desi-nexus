@@ -6,6 +6,7 @@ import { taxonomy } from "@/lib/api";
 import { EnquiryForm } from "@/components/EnquiryForm";
 import { Breadcrumbs } from "@/components/site/Breadcrumbs";
 import { Faq } from "@/components/site/Faq";
+import { SITE_URL } from "@/content/site";
 
 /**
  * A page whose whole job is to be the address somebody can send.
@@ -19,7 +20,7 @@ import { Faq } from "@/components/site/Faq";
  * rather than linked, because somebody on this page is about to ask and half
  * of them are about to ask one of these.
  */
-const SITE = process.env.NEXT_PUBLIC_SITE_URL ?? "https://desi-nexus.com";
+const SITE = SITE_URL;
 
 export const metadata: Metadata = {
   title: "Contact",
