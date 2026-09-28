@@ -95,6 +95,9 @@ export function Footer() {
                 <Link href="/contact">Contact us</Link>
               </li>
               <li>
+                <Link href="/rules">Marketplace rules</Link>
+              </li>
+              <li>
                 <Link href="/login">Sign in</Link>
               </li>
             </ul>

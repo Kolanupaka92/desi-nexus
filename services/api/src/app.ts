@@ -13,6 +13,7 @@ import { registerGigRoutes } from "./http/routes/gigs.js";
 import { registerPaymentRoutes } from "./http/routes/payments.js";
 import { registerEnquiryRoutes } from "./http/routes/enquiries.js";
 import { registerDiscoveryRoutes } from "./http/routes/discovery.js";
+import { registerAdminRoutes } from "./http/routes/admin.js";
 import { InMemoryRateLimiter, type RateLimiter } from "./infra/rateLimit.js";
 import { RedisRateLimiter } from "./infra/redisRateLimit.js";
 import { createInMemoryStore, type Store } from "./infra/store.js";
@@ -265,6 +266,7 @@ export function buildRouter(deps: AppDeps): Router {
   registerGigRoutes(router, deps);
   registerPaymentRoutes(router, deps);
   registerEnquiryRoutes(router, deps);
+  registerAdminRoutes(router, deps);
   return router;
 }
 

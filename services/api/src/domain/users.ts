@@ -56,7 +56,44 @@ export interface BaseUser {
   metroId: string;
   languages: Language[];
   readonly createdAt: string;
+  /**
+   * Set when the account is removed for breaking the marketplace rules. A
+   * suspended account cannot sign in, disappears from search and public
+   * profiles, and cannot be booked -- to everyone using the app it is gone.
+   * It is not deleted: its bookings and ledger entries reference it, and a
+   * wrongful removal has to be reversible.
+   */
   suspendedAt?: string;
+  /** Why. Required whenever suspendedAt is set (the schema enforces it). */
+  suspensionReason?: string;
+  /** The administrator who suspended it. */
+  suspendedBy?: string;
+  /** When this account agreed to the marketplace rules, and to which version. */
+  rulesAcceptedAt?: string;
+  rulesVersion?: string;
+}
+
+/**
+ * The version of the marketplace rules a new account agrees to.
+ *
+ * Bump it whenever the rules text at /rules changes in substance. It is stored
+ * on each account because "they agreed to the rules" has to mean the rules as
+ * they read on the day -- a rule added later was never agreed to by the people
+ * who signed up before it.
+ */
+export const RULES_VERSION = "2026-09-28";
+
+/**
+ * Whether an account has been removed from the marketplace.
+ *
+ * The single definition every read path uses to hide someone -- search, the
+ * public profile, a host's applicant list, the booking offer. Checked
+ * explicitly rather than left to canReceivePayouts, which also refuses a
+ * suspended account and so hid them from search by accident: an accident that
+ * would have undone itself the day payout readiness stopped zeroing a score.
+ */
+export function isSuspended(user: Pick<BaseUser, "suspendedAt">): boolean {
+  return Boolean(user.suspendedAt);
 }
 
 export interface HostProfile {

@@ -60,7 +60,8 @@ for m in \
   006_enquiries.sql \
   007_crew_event_links.sql \
   008_metro_footprint.sql \
-  009_crew_event_links_delete.sql
+  009_crew_event_links_delete.sql \
+  010_suspension_and_rules.sql
 do
   psql "$PGURL" -v ON_ERROR_STOP=1 --single-transaction -f "db/migrations/$m" || { echo "stopped at $m"; break; }
 done
@@ -90,6 +91,7 @@ them, and re-runs cleanly anyway.
 | 007 | Yes | `IF NOT EXISTS` throughout |
 | 008 | Yes | `ON CONFLICT (code) DO UPDATE`, so a re-run converges on the right centres and radii |
 | 009 | Yes | a single `GRANT`, which is idempotent |
+| 010 | Yes | `ADD COLUMN IF NOT EXISTS`; the constraint is added by catching `duplicate_object` |
 
 Re-running a **No** is not destructive -- with `ON_ERROR_STOP` and
 `--single-transaction` it rolls back and changes nothing -- but it does stop the
@@ -227,3 +229,40 @@ encrypted environment variables (web), and rotate on a schedule.
 If a key has ever been committed anywhere — including in another repository, and
 especially a public one — treat it as compromised and rotate it rather than
 reusing it. A key in a public repository is scraped within minutes of the push.
+
+## Enforcing the marketplace rules
+
+Every account agrees at signup to the rules at `/rules`, the chief one being
+that a host or vendor met through Utsav is booked through Utsav rather than
+taken off the platform. Breaking it gets the account **suspended**: it cannot
+sign in, its profile and listings disappear, and it cannot be booked.
+
+Suspended, not deleted. The user row stays, because bookings and ledger
+entries reference it and the ledger is a financial record that must outlive a
+ban -- and because a wrongful removal has to be reversible. `/v1/admin/users/:id/reinstate`
+undoes it completely.
+
+**Making the first administrator.** The admin role cannot be chosen at signup,
+by design. Register normally, then promote the account in the database:
+
+```sql
+UPDATE users SET roles = array_append(roles, 'admin')
+ WHERE email = 'you@example.com' AND NOT ('admin' = ANY (roles));
+```
+
+Sign in again afterwards: roles travel in the session token.
+
+**Suspending an account.** A reason is required -- it is what the person is
+told and what an appeal is decided on, and the database refuses a suspension
+without one.
+
+```bash
+curl -X POST "$API/v1/admin/users/$USER_ID/suspend" \
+  -H "authorization: Bearer $ADMIN_TOKEN" -H "content-type: application/json" \
+  -d '{"reason": "Moved a booking made here to WhatsApp to avoid the platform"}'
+```
+
+A second suspension of the same account is refused rather than overwriting the
+original reason. To reverse one, `POST /v1/admin/users/$USER_ID/reinstate`.
+There is no admin screen yet; these two calls are the interface.
+

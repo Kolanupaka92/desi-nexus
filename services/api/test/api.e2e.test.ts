@@ -349,6 +349,7 @@ test("registration refuses a self-assigned admin role and a weak password", asyn
       displayName: "Sneaky",
       roles: ["host", "admin"],
       homeBase: FRISCO,
+      acceptedRules: true,
     },
   });
   assert.equal(escalation.status, 403);
@@ -360,6 +361,7 @@ test("registration refuses a self-assigned admin role and a weak password", asyn
       displayName: "Weak",
       roles: ["host"],
       homeBase: FRISCO,
+      acceptedRules: true,
     },
   });
   assert.equal(weak.status, 400);

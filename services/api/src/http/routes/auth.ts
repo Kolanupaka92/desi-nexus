@@ -14,7 +14,7 @@ import {
   verifyToken,
   TokenError,
 } from "../../infra/tokens.js";
-import { validateBaseUser, ValidationError, type BaseUser, type Role } from "../../domain/users.js";
+import { validateBaseUser, ValidationError, RULES_VERSION, type BaseUser, type Role } from "../../domain/users.js";
 import { nearestMetro } from "../../domain/geo.js";
 import { TOPICS } from "../../events/bus.js";
 import type { AppDeps } from "../../app.js";
@@ -42,6 +42,24 @@ export function registerAuthRoutes(router: Router, deps: AppDeps): void {
       const homeBase = field(ctx, "homeBase", isObject) as { lat: number; lng: number };
       const body = ctx.body as Record<string, unknown>;
 
+      /*
+       * Agreement to the marketplace rules, required and explicit.
+       *
+       * The rule that matters most here is the one against taking a client or
+       * vendor off the platform, and its penalty is removal. A penalty is only
+       * fair against someone who agreed to the rule, so an account cannot
+       * exist without that agreement on record. Strictly `=== true`: a missing
+       * field, "true" or 1 is not someone ticking a box.
+       */
+      if (body.acceptedRules !== true) {
+        throw new HttpError(
+          400,
+          "rules_not_accepted",
+          "you must agree to the marketplace rules to create an account",
+        );
+      }
+      const now = new Date().toISOString();
+
       const user: BaseUser = {
         id: randomUUID(),
         email: email.toLowerCase(),
@@ -52,7 +70,9 @@ export function registerAuthRoutes(router: Router, deps: AppDeps): void {
         homeBase,
         metroId: "",
         languages: (Array.isArray(body.languages) ? body.languages : []) as BaseUser["languages"],
-        createdAt: new Date().toISOString(),
+        createdAt: now,
+        rulesAcceptedAt: now,
+        rulesVersion: RULES_VERSION,
         ...(typeof body.phone === "string" ? { phone: body.phone } : {}),
       };
 

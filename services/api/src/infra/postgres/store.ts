@@ -53,9 +53,10 @@ class PgUsers implements UserRepository {
   async create(user: BaseUser): Promise<BaseUser> {
     const rows = await this.db.query(
       `INSERT INTO users (id, email, phone_e164, display_name, roles, verification,
-                          mfa_enabled, home_base, metro_code, languages, created_at)
+                          mfa_enabled, home_base, metro_code, languages, created_at,
+                          rules_accepted_at, rules_version)
        VALUES ($1, $2, $3, $4, $5::user_role[], $6::verification_level, $7,
-               ST_MakePoint($8, $9)::geography, $10, $11::text[], $12)
+               ST_MakePoint($8, $9)::geography, $10, $11::text[], $12, $13, $14)
        RETURNING ${USER_COLUMNS}`,
       [
         user.id,
@@ -70,6 +71,8 @@ class PgUsers implements UserRepository {
         user.metroId || null,
         user.languages,
         user.createdAt,
+        user.rulesAcceptedAt ?? null,
+        user.rulesVersion ?? null,
       ],
     );
     return toUser(first(rows, "the inserted user"));
@@ -122,6 +125,26 @@ class PgUsers implements UserRepository {
     if (!rows[0]) throw new Error(`no such user: ${id}`);
     return toUser(rows[0]);
   }
+
+  async suspend(id: string, suspension: { at: string; reason: string; by: string }): Promise<BaseUser> {
+    const rows = await this.db.query(
+      `UPDATE users SET suspended_at = $2, suspension_reason = $3, suspended_by = $4
+       WHERE id = $1 RETURNING ${USER_COLUMNS}`,
+      [id, suspension.at, suspension.reason, suspension.by],
+    );
+    if (!rows[0]) throw new Error(`no such user: ${id}`);
+    return toUser(rows[0]);
+  }
+
+  async reinstate(id: string): Promise<BaseUser> {
+    const rows = await this.db.query(
+      `UPDATE users SET suspended_at = NULL, suspension_reason = NULL, suspended_by = NULL
+       WHERE id = $1 RETURNING ${USER_COLUMNS}`,
+      [id],
+    );
+    if (!rows[0]) throw new Error(`no such user: ${id}`);
+    return toUser(rows[0]);
+  }
 }
 
 /**
@@ -136,7 +159,8 @@ class PgUsers implements UserRepository {
 const USER_COLUMNS = `id, email, phone_e164, display_name, roles::text[] AS roles,
   verification, mfa_enabled,
   ST_Y(home_base::geometry) AS lat, ST_X(home_base::geometry) AS lng,
-  metro_code, languages, suspended_at, created_at`;
+  metro_code, languages, suspended_at, suspension_reason, suspended_by,
+  rules_accepted_at, rules_version, created_at`;
 
 function toUser(row: Record<string, unknown>): BaseUser {
   return {
@@ -152,6 +176,10 @@ function toUser(row: Record<string, unknown>): BaseUser {
     createdAt: iso(row.created_at),
     ...(row.phone_e164 ? { phone: row.phone_e164 as string } : {}),
     ...(row.suspended_at ? { suspendedAt: iso(row.suspended_at) } : {}),
+    ...(row.suspension_reason ? { suspensionReason: row.suspension_reason as string } : {}),
+    ...(row.suspended_by ? { suspendedBy: row.suspended_by as string } : {}),
+    ...(row.rules_accepted_at ? { rulesAcceptedAt: iso(row.rules_accepted_at) } : {}),
+    ...(row.rules_version ? { rulesVersion: row.rules_version as string } : {}),
   };
 }
 
