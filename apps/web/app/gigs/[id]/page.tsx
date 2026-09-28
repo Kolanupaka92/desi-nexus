@@ -39,7 +39,18 @@ export default async function GigPage({ params }: { params: Promise<{ id: string
   const state = GIG_STATE_COPY[gig.state] ?? { label: gig.state, tone: "draft" as const };
 
   // Only the host may see who applied; a vendor viewing the gig sees the brief.
-  const rows = isOwner ? await applicants(id).then((r) => r.applications).catch(() => []) : [];
+  const listing = isOwner
+    ? await applicants(id).catch(() => ({ applications: [], bookedVendorRemoved: false }))
+    : { applications: [], bookedVendorRemoved: false };
+  const rows = listing.applications;
+  /*
+   * The vendor this gig was booked with was removed from the platform. The host
+   * is told plainly and may book someone else -- the API allows replacing the
+   * offer in exactly this case. Without it the booking vanished from the page
+   * with no explanation, and every attempt to rebook was refused.
+   */
+  const bookedVendorRemoved = Boolean(listing.bookedVendorRemoved);
+  const canBook = !gig.acceptedOfferId || bookedVendorRemoved;
 
   return (
     <div className="shell">
@@ -124,6 +135,15 @@ export default async function GigPage({ params }: { params: Promise<{ id: string
       {isOwner && (
         <section style={{ marginTop: 28 }}>
           <h2>Applicants ({rows.length})</h2>
+          {bookedVendorRemoved && (
+            <div className="notice info" role="status" style={{ marginBottom: 14 }}>
+              <strong>The vendor you booked is no longer on Utsav</strong>, so this booking
+              can&rsquo;t go ahead with them.{" "}
+              {rows.length > 0
+                ? "You can book another applicant below."
+                : "As new vendors apply, you can book one of them here."}
+            </div>
+          )}
           {rows.length === 0 ? (
             <div className="card empty">
               <p style={{ margin: 0 }}>
@@ -155,7 +175,7 @@ export default async function GigPage({ params }: { params: Promise<{ id: string
                     </p>
                   )}
 
-                  {!gig.acceptedOfferId && (
+                  {canBook && (
                     <div style={{ marginTop: 14 }}>
                       <OfferForm gigId={gig.id} applicationId={row.application.id} />
                     </div>

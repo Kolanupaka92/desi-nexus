@@ -89,6 +89,20 @@ export default function ForVendorsPage() {
         </p>
       </div>
 
+      {/*
+        The one rule, stated where vendors decide whether to join rather than
+        only in the footer: they are the people it mostly binds, and a penalty
+        is only fair against someone who knew the rule before signing up.
+      */}
+      <div className="card" style={{ marginTop: 16 }}>
+        <h3>One rule</h3>
+        <p style={{ marginTop: 0 }}>
+          A client you meet here is booked here. Taking a booking you found on Utsav somewhere else
+          to avoid the platform gets your account suspended &mdash; your profile comes down and you
+          can no longer be booked. <Link href="/rules">Read the marketplace rules</Link>.
+        </p>
+      </div>
+
       <section style={{ marginTop: 26 }}>
         <h3>Specialities we match</h3>
         <ul className="tags" style={{ marginTop: 10 }}>

@@ -79,6 +79,8 @@ export async function registerAction(_prev: FormState, form: FormData): Promise<
         roles: roles.length > 0 ? roles : ["host"],
         homeBase: { lat, lng },
         languages: form.getAll("languages").map(String),
+        // A checked box posts "on"; an unchecked one posts nothing at all.
+        acceptedRules: form.get("acceptedRules") === "on",
       },
     });
   } catch (error) {

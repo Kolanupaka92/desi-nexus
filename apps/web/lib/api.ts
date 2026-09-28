@@ -241,7 +241,11 @@ export const gig = (id: string) =>
   apiFetch<{ gig: Gig; allowedTransitions: string[] }>(`/v1/gigs/${id}`);
 
 export const applicants = (id: string) =>
-  apiFetch<{ applications: ApplicantRow[] }>(`/v1/gigs/${id}/applications`);
+  apiFetch<{
+    applications: ApplicantRow[];
+    /** The vendor this gig was booked with has since been suspended. */
+    bookedVendorRemoved?: boolean;
+  }>(`/v1/gigs/${id}/applications`);
 
 /**
  * A vendor's published profile, read without a session.

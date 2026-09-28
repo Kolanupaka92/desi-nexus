@@ -38,6 +38,15 @@ export interface UserRepository {
   byId(id: string): Promise<BaseUser | undefined>;
   byEmail(email: string): Promise<BaseUser | undefined>;
   update(id: string, patch: Partial<BaseUser>): Promise<BaseUser>;
+  /**
+   * Remove an account from the marketplace. Separate from `update` on purpose:
+   * the in-memory store merges patches, so "clear the suspension" through a
+   * patch would silently clear nothing, and the two stores would disagree
+   * about whether someone is banned.
+   */
+  suspend(id: string, suspension: { at: string; reason: string; by: string }): Promise<BaseUser>;
+  /** Undo a suspension -- an appeal upheld, or a removal made in error. */
+  reinstate(id: string): Promise<BaseUser>;
 }
 
 export interface ProfileRepository {
@@ -184,6 +193,33 @@ class MemoryUsers implements UserRepository {
     if (user.phone && updated.phone !== user.phone) this.byPhoneMap.delete(user.phone);
     if (updated.phone) this.byPhoneMap.set(updated.phone, id);
     return clone(updated);
+  }
+
+  async suspend(id: string, suspension: { at: string; reason: string; by: string }): Promise<BaseUser> {
+    const user = this.byIdMap.get(id);
+    if (!user) throw new Error(`no such user: ${id}`);
+    // Mirrors users_suspension_has_reason (010). Without it this store would
+    // accept a reasonless suspension that PostgreSQL refuses, and a test run
+    // on memory alone would pass code that fails in production.
+    if (suspension.reason.trim().length === 0) throw new Error("a suspension needs a reason");
+    const updated: BaseUser = {
+      ...user,
+      suspendedAt: suspension.at,
+      suspensionReason: suspension.reason,
+      suspendedBy: suspension.by,
+    };
+    this.byIdMap.set(id, updated);
+    return clone(updated);
+  }
+
+  async reinstate(id: string): Promise<BaseUser> {
+    const user = this.byIdMap.get(id);
+    if (!user) throw new Error(`no such user: ${id}`);
+    // Destructured out rather than set to undefined, so the reinstated record
+    // is indistinguishable from one that was never suspended.
+    const { suspendedAt: _at, suspensionReason: _reason, suspendedBy: _by, ...rest } = user;
+    this.byIdMap.set(id, rest);
+    return clone(rest);
   }
 }
 

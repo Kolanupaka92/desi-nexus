@@ -50,6 +50,10 @@ async function register(page, { email, roles, phone, metro }) {
   await page.fill('input[name="phone"]', phone);
   await page.fill('input[name="password"]', PASSWORD);
   await page.selectOption('select[name="metro"]', { label: metro });
+  // Agreeing to the marketplace rules is required to create an account. Checked
+  // on the input itself, not by clicking its label -- the label contains the
+  // link to /rules, and a click there opens a new tab instead of ticking.
+  await page.check('input[name="acceptedRules"]');
   await page.click('main button[type="submit"]');
   await page.waitForURL("**/dashboard**", { timeout: 30_000 });
 }

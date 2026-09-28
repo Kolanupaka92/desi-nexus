@@ -110,6 +110,7 @@ export async function onboard(
       homeBase: input.homeBase,
       phone: nextPhone(),
       languages: input.languages ?? ["english", "telugu"],
+      acceptedRules: true,
     },
   });
   assert.equal(registered.status, 201, JSON.stringify(registered.body));

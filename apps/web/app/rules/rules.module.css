@@ -1,0 +1,92 @@
+/* The marketplace rules. Built on the tokens, like StatusPanel, not legacy.css. */
+
+.page {
+  max-width: var(--measure);
+  padding-block: var(--s9) var(--s10);
+}
+
+.eyebrow {
+  font-family: var(--font-text);
+  font-size: var(--step--1);
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  /* --accent-ink, not raw marigold: 5.5:1 on paper where marigold is 2.8. */
+  color: var(--accent-ink);
+  margin: 0 0 var(--s3);
+}
+
+.title {
+  font-family: var(--font-display);
+  font-size: var(--step-5);
+  line-height: 1.05;
+  color: var(--ink);
+  margin: 0 0 var(--s4);
+  text-wrap: balance;
+}
+
+.lede {
+  font-size: var(--step-1);
+  line-height: 1.5;
+  color: var(--ink-soft);
+  margin: 0 0 var(--s3);
+}
+
+.updated {
+  font-size: var(--step--1);
+  color: var(--ink-faint);
+  margin: 0;
+}
+
+.section {
+  margin-top: var(--s8);
+}
+
+.heading {
+  font-family: var(--font-display);
+  font-size: var(--step-2);
+  line-height: 1.2;
+  color: var(--ink);
+  margin: 0 0 var(--s3);
+}
+
+.section p,
+.section li {
+  font-size: var(--step-0);
+  line-height: 1.65;
+  color: var(--ink-soft);
+}
+
+.section p {
+  margin: 0 0 var(--s3);
+}
+
+.section ul {
+  margin: 0 0 var(--s3);
+  padding-left: 1.2em;
+}
+
+.section li + li {
+  margin-top: var(--s2);
+}
+
+/*
+ * The one exception, set apart so nobody reads the rule without it. It is the
+ * difference between the rule and a trap: until online payments open, the app
+ * itself tells people to settle directly.
+ */
+.exception {
+  margin-top: var(--s8);
+  padding: var(--s5) var(--s6);
+  border-left: 3px solid var(--accent-ink);
+  background: var(--paper-warm);
+  border-radius: 4px;
+}
+
+.exception .heading {
+  font-size: var(--step-1);
+}
+
+.exception p:last-child {
+  margin-bottom: 0;
+}

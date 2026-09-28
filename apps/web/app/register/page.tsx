@@ -122,6 +122,33 @@ export default async function RegisterPage({
               />
             </div>
           )}
+
+          {/*
+            The marketplace rule, agreed at signup. `required` is only for a
+            better first attempt; the API refuses an account without
+            acceptedRules === true, so this is not the enforcement. The link
+            opens in a new tab so reading the rules does not lose the form.
+          */}
+          <div className="field">
+            <label
+              style={{ display: "flex", gap: 11, alignItems: "flex-start", cursor: "pointer", fontWeight: 400 }}
+            >
+              <input
+                type="checkbox"
+                name="acceptedRules"
+                required
+                style={{ width: "auto", marginTop: 4, accentColor: "var(--maroon)" }}
+              />
+              <span>
+                I agree to the{" "}
+                <Link href="/rules" target="_blank" rel="noopener">
+                  marketplace rules
+                </Link>
+                , including that anyone I meet here is booked here, not taken off the platform.
+                Accounts that break this are suspended.
+              </span>
+            </label>
+          </div>
         </ActionForm>
       </div>
 

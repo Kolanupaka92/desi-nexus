@@ -22,6 +22,7 @@ import { GeocodeError, type Geocoder } from "../../infra/geocode/index.js";
 import { planNotificationWaves, rankCandidates } from "../../domain/matching.js";
 import { TOPICS } from "../../events/bus.js";
 import type { AppDeps } from "../../app.js";
+import { isSuspended } from "../../domain/users.js";
 
 export function registerGigRoutes(router: Router, deps: AppDeps): void {
   const { config, store, bus, geocoder, unitOfWork } = deps;
@@ -252,10 +253,27 @@ export function registerGigRoutes(router: Router, deps: AppDeps): void {
 
       // Rank the applicants the same way the shortlist was built, so the host
       // sees one consistent notion of fit rather than two.
+      // A suspended vendor's applications disappear with them. Loaded first so
+      // the host never sees -- and so cannot pick -- someone who has been
+      // removed; the offer route below refuses them as well, for a host whose
+      // page was already open.
+      const vendors = await Promise.all(
+        applications.map(async (application) => ({
+          application,
+          user: await store.users.byId(application.vendorId),
+        })),
+      );
+      const active = vendors.filter(({ user }) => !user || !isSuspended(user));
+      // If the vendor this gig is booked with is among the removed, the host
+      // must be told, not left looking at a booking that silently vanished.
+      const booked = gig.acceptedOfferId
+        ? vendors.find(({ application }) => application.id === gig.acceptedOfferId)
+        : undefined;
+      const bookedVendorRemoved = Boolean(booked?.user && isSuspended(booked.user));
+
       const scored = await Promise.all(
-        applications.map(async (application) => {
+        active.map(async ({ application, user }) => {
           const profile = await store.profiles.crew(application.vendorId);
-          const user = await store.users.byId(application.vendorId);
           if (!profile) return { application, score: 0 };
           const [match] = rankCandidates([await toCandidate(profile, store)], gig.brief, {
             minScore: 0,
@@ -271,7 +289,7 @@ export function registerGigRoutes(router: Router, deps: AppDeps): void {
         }),
       );
       scored.sort((a, b) => b.score - a.score);
-      return { status: 200, body: { applications: scored } };
+      return { status: 200, body: { applications: scored, bookedVendorRemoved } };
     },
     requireAuth,
     requireRole("host"),
@@ -289,8 +307,42 @@ export function registerGigRoutes(router: Router, deps: AppDeps): void {
       if (!application || application.gigId !== gig.id) {
         throw new HttpError(404, "not_found", "no such application on this gig");
       }
+      // The applicant list already hides a suspended vendor, but a host who
+      // loaded it before the suspension can still press "book". This is the
+      // check that holds regardless of what the page showed. It runs before
+      // anything below is changed, so a refused offer leaves nothing half-done.
+      const vendor = await store.users.byId(application.vendorId);
+      if (!vendor || isSuspended(vendor)) {
+        throw new HttpError(409, "vendor_unavailable", "this vendor is no longer available to book");
+      }
+
       if (gig.acceptedOfferId) {
-        throw new HttpError(409, "already_offered", "an offer has already been accepted on this gig");
+        /*
+         * A gig already booked may be re-offered in exactly one case: the vendor
+         * it was booked with has since been suspended. Without this the host is
+         * stranded -- their vendor is gone from the page, and the gig still
+         * points at them, so every new offer was refused as "already offered".
+         * Found by driving that case in a browser; the unit tests had only ever
+         * suspended a vendor nobody had booked yet.
+         */
+        const current = await store.applications.byId(gig.acceptedOfferId);
+        const currentVendor = current ? await store.users.byId(current.vendorId) : undefined;
+        if (!current || !currentVendor || !isSuspended(currentVendor)) {
+          throw new HttpError(409, "already_offered", "an offer has already been accepted on this gig");
+        }
+        // Money is not decided here. Once a deposit exists, what happens to it
+        // when the vendor is removed is a refund, and a person makes that call.
+        if (await store.escrows.byGig(gig.id)) {
+          throw new HttpError(
+            409,
+            "booked_vendor_removed_deposit_held",
+            "the vendor you booked has been removed, and a deposit is already held -- contact us to resolve it",
+          );
+        }
+        // Released only now, when the host actively rebooks. Until then the
+        // booking is untouched, so reinstating the vendor restores it whole.
+        current.status = "withdrawn";
+        await store.applications.save(current);
       }
 
       application.status = "accepted";

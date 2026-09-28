@@ -14,6 +14,7 @@ import {
   ValidationError,
   totalLocalReach,
   canReceivePayouts,
+  isSuspended,
   toSlug,
   publishability,
   toPublicVendorProfile,
@@ -319,7 +320,9 @@ export function registerDiscoveryRoutes(router: Router, deps: AppDeps): void {
       if (!profile) throw new HttpError(404, "not_found", "no such vendor");
 
       const user = await store.users.byId(profile.userId);
-      if (!user) throw new HttpError(404, "not_found", "no such vendor");
+      // A suspended vendor's page is gone, and says only what a missing one
+      // says: the public site does not announce who was banned, or why.
+      if (!user || isSuspended(user)) throw new HttpError(404, "not_found", "no such vendor");
 
       const published = toPublicVendorProfile(profile, user);
       if (!published) throw new HttpError(404, "not_found", "no such vendor");
@@ -352,7 +355,17 @@ export function registerDiscoveryRoutes(router: Router, deps: AppDeps): void {
         languages: (Array.isArray(body.languages) ? body.languages : []) as never,
       };
 
-      const profiles = await store.profiles.crewBySpecialty(specialty);
+      const all = await store.profiles.crewBySpecialty(specialty);
+      // Filtered before ranking, explicitly. See isSuspended for why this is
+      // not left to the payout check that happened to do it already.
+      const profiles = (
+        await Promise.all(
+          all.map(async (profile) => {
+            const user = await store.users.byId(profile.userId);
+            return user && !isSuspended(user) ? profile : undefined;
+          }),
+        )
+      ).filter((profile): profile is (typeof all)[number] => profile !== undefined);
       const candidates = await Promise.all(profiles.map((profile) => toCandidate(profile, store)));
       const ranked = rankCandidates(candidates, brief, { limit: 25 });
 
