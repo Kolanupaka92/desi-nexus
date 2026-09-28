@@ -32,6 +32,30 @@ export class ApiCallError extends Error {
   }
 }
 
+/**
+ * The API could not be reached at all -- no response came back.
+ *
+ * Distinct from ApiCallError, which means the API answered and said no. This
+ * one means nothing answered: the connection was refused, the host did not
+ * resolve, or the request timed out. To a visitor those are one outage; to the
+ * code they have to be told apart, because "you are not signed in" (a 401)
+ * sends them to /login and "the booking service is down" must not.
+ *
+ * It exists because that distinction was being drawn twice, differently. The
+ * server actions matched the error text against
+ * /fetch failed|ECONNREFUSED|timed out|aborted/ and showed a proper message.
+ * The pages did not check at all: /gigs/new, /vendor and /dashboard handled a
+ * 401 and rethrew everything else, so an unreachable API was a 500 -- on the
+ * page every "Post a brief" button on the site links to. Both now test this
+ * one type instead of the error's wording.
+ */
+export class ApiUnavailableError extends Error {
+  constructor(options: { cause: unknown }) {
+    super("The booking service could not be reached.", options);
+    this.name = "ApiUnavailableError";
+  }
+}
+
 interface RequestOptions {
   readonly method?: string;
   readonly body?: unknown;
@@ -67,14 +91,25 @@ export async function apiFetch<T>(path: string, options: RequestOptions = {}): P
     if (token) headers.authorization = `Bearer ${token}`;
   }
 
-  const response = await fetch(`${BASE_URL}${path}`, {
-    method,
-    headers,
-    ...(body === undefined ? {} : { body: JSON.stringify(body) }),
-    // User-specific reads must never be cached across users.
-    ...(revalidate === undefined ? { cache: "no-store" as const } : { next: { revalidate } }),
-    signal: AbortSignal.timeout(timeoutMs ?? DEFAULT_TIMEOUT_MS),
-  });
+  let response: Response;
+  try {
+    response = await fetch(`${BASE_URL}${path}`, {
+      method,
+      headers,
+      ...(body === undefined ? {} : { body: JSON.stringify(body) }),
+      // User-specific reads must never be cached across users.
+      ...(revalidate === undefined ? { cache: "no-store" as const } : { next: { revalidate } }),
+      signal: AbortSignal.timeout(timeoutMs ?? DEFAULT_TIMEOUT_MS),
+    });
+  } catch (error) {
+    /*
+     * `fetch` rejects only when no response arrived at all: a refused or reset
+     * connection, a DNS failure, or the timeout above firing. An HTTP 4xx/5xx
+     * resolves normally and is handled below as an ApiCallError. So everything
+     * caught here is, by construction, "unreachable" -- and nothing else is.
+     */
+    throw new ApiUnavailableError({ cause: error });
+  }
 
   const text = await response.text();
   const payload = text ? (JSON.parse(text) as Record<string, unknown>) : {};

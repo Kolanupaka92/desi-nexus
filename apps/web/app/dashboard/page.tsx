@@ -1,9 +1,10 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { apiFetch, me, type Gig, ApiCallError } from "@/lib/api";
+import { apiFetch, me, type Gig, ApiCallError, ApiUnavailableError } from "@/lib/api";
 import { GIG_STATE_COPY, label, shortDate, usd } from "@/lib/format";
 import { VerifyPrompt } from "./VerifyPrompt";
+import { ServiceUnavailable } from "@/components/site/ServiceUnavailable";
 
 export const metadata: Metadata = { title: "Dashboard" };
 
@@ -12,6 +13,11 @@ export default async function DashboardPage() {
   try {
     profile = await me();
   } catch (error) {
+    // Unreachable is not "signed out": sending this visitor to /login would
+    // only fail again there. Say what is actually wrong, with a way out.
+    if (error instanceof ApiUnavailableError) {
+      return <ServiceUnavailable title="Your dashboard can’t load right now" />;
+    }
     if (error instanceof ApiCallError && error.status === 401) redirect("/login");
     throw error;
   }

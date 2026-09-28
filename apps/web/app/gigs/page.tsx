@@ -1,9 +1,10 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { ApiCallError, apiFetch, me, type Gig, type ScoreBreakdown } from "@/lib/api";
+import { ApiCallError, apiFetch, me, type Gig, type ScoreBreakdown, ApiUnavailableError } from "@/lib/api";
 import { label, shortDate, usd } from "@/lib/format";
 import { ScoreBar } from "@/components/ScoreBar";
+import { ServiceUnavailable } from "@/components/site/ServiceUnavailable";
 
 export const metadata: Metadata = { title: "Open gigs" };
 
@@ -21,6 +22,11 @@ export default async function BrowseGigsPage() {
   try {
     profile = await me();
   } catch (error) {
+    // Unreachable is not "signed out": sending this visitor to /login would
+    // only fail again there. Say what is actually wrong, with a way out.
+    if (error instanceof ApiUnavailableError) {
+      return <ServiceUnavailable title="Open gigs can’t load right now" />;
+    }
     if (error instanceof ApiCallError && error.status === 401) redirect("/login");
     throw error;
   }

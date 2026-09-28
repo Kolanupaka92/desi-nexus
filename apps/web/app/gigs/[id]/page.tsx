@@ -1,11 +1,12 @@
 import type { Metadata } from "next";
 import { notFound, redirect } from "next/navigation";
-import { ApiCallError, applicants, gig as fetchGig, me } from "@/lib/api";
+import { ApiCallError, applicants, gig as fetchGig, me, ApiUnavailableError } from "@/lib/api";
 import { GIG_STATE_COPY, label, shortDate, usd } from "@/lib/format";
 import { PublishButton } from "./PublishButton";
 import { OfferForm } from "./OfferForm";
 import { ApplyForm } from "./ApplyForm";
 import { ScoreBar } from "@/components/ScoreBar";
+import { ServiceUnavailable } from "@/components/site/ServiceUnavailable";
 
 export const metadata: Metadata = { title: "Gig" };
 
@@ -16,6 +17,11 @@ export default async function GigPage({ params }: { params: Promise<{ id: string
   try {
     profile = await me();
   } catch (error) {
+    // Unreachable is not "signed out": sending this visitor to /login would
+    // only fail again there. Say what is actually wrong, with a way out.
+    if (error instanceof ApiUnavailableError) {
+      return <ServiceUnavailable title="This gig can’t load right now" />;
+    }
     if (error instanceof ApiCallError && error.status === 401) redirect("/login");
     throw error;
   }
