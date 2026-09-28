@@ -45,9 +45,12 @@ export PGURL="postgresql://postgres@db.PROJECT.supabase.co:5432/postgres"
 # ON_ERROR_STOP: without it psql prints the error and carries on to the next
 # statement, so a failed CREATE TABLE is followed by grants on a table that
 # does not exist and the run still exits 0.
-# --single-transaction: without it each statement commits on its own, so a
-# migration that fails halfway leaves its first half applied and cannot simply
-# be run again. With it, a failure rolls the whole file back.
+# --single-transaction: 007 onward have no BEGIN/COMMIT of their own, so
+# without it each statement commits separately and a failure halfway leaves the
+# first half applied. 001-006 DO wrap themselves, so for those it is redundant
+# and psql prints "WARNING: there is already a transaction in progress" and
+# "there is no transaction in progress". Those warnings are expected and
+# harmless -- the file's own BEGIN/COMMIT is what makes it atomic.
 for m in \
   001_init.sql \
   002_seed_reference_data.sql \
@@ -56,7 +59,8 @@ for m in \
   005_vendor_public_profiles.sql \
   006_enquiries.sql \
   007_crew_event_links.sql \
-  008_metro_footprint.sql
+  008_metro_footprint.sql \
+  009_crew_event_links_delete.sql
 do
   psql "$PGURL" -v ON_ERROR_STOP=1 --single-transaction -f "db/migrations/$m" || { echo "stopped at $m"; break; }
 done
@@ -85,6 +89,7 @@ them, and re-runs cleanly anyway.
 | 006 | **No** | `relation "enquiries" already exists` |
 | 007 | Yes | `IF NOT EXISTS` throughout |
 | 008 | Yes | `ON CONFLICT (code) DO UPDATE`, so a re-run converges on the right centres and radii |
+| 009 | Yes | a single `GRANT`, which is idempotent |
 
 Re-running a **No** is not destructive -- with `ON_ERROR_STOP` and
 `--single-transaction` it rolls back and changes nothing -- but it does stop the
@@ -92,12 +97,19 @@ loop, so everything after it silently goes unapplied. That is the failure to
 watch for.
 
 So on an existing database, find out where it stopped and apply only what
-follows -- for example, one that predates the event-fit work needs just:
+follows. A database that predates the event-fit work needs 007, 008 and 009;
+one that already has 007 and 008 needs **009 alone**, and it must not be
+skipped:
 
 ```bash
-psql "$PGURL" -v ON_ERROR_STOP=1 --single-transaction -f db/migrations/007_crew_event_links.sql
-psql "$PGURL" -v ON_ERROR_STOP=1 --single-transaction -f db/migrations/008_metro_footprint.sql
+psql "$PGURL" -v ON_ERROR_STOP=1 --single-transaction -f db/migrations/009_crew_event_links_delete.sql
 ```
+
+Without 009, every vendor profile save fails with `permission denied for table
+crew_event_links`, so no vendor can ever create a profile. 007 granted DELETE
+on that table to the system role only, but the save runs on the application
+role. The test suites never saw it because they connect as a superuser; a
+booking flow driven end to end against the restricted role did.
 
 008 **deactivates** El Paso, the Rio Grande Valley, Corpus Christi and Lubbock
 rather than deleting them. `users.metro_code` and `gigs.metro_code` reference

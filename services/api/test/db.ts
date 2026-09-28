@@ -92,6 +92,7 @@ export async function createTestSchema(schema: string): Promise<Database> {
     "006_enquiries.sql",
     "007_crew_event_links.sql",
     "008_metro_footprint.sql",
+    "009_crew_event_links_delete.sql",
   ]) {
     await db.query(migration(file));
   }

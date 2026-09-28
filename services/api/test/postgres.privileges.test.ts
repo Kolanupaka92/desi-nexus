@@ -18,6 +18,16 @@ before(async () => {
   if (skip) return;
   db = await createTestSchema("test_privs");
   await db.query(migration("003_app_role.sql"));
+  /*
+   * 009 again, AFTER 003. This harness applies the schema migrations first and
+   * 003 last, but 003 runs `REVOKE DELETE ON ALL TABLES` -- so 009's grant,
+   * applied earlier with the rest, is stripped here. Production applies them
+   * in number order, where 009 follows 003 and its grant stands. Re-applying
+   * it restores that order for the one property this file checks; GRANT is
+   * idempotent. Without it, this test could not tell a missing 009 from a
+   * working one.
+   */
+  await db.query(migration("009_crew_event_links_delete.sql"));
 });
 
 after(async () => {
@@ -86,6 +96,20 @@ test("join tables the service rewrites are deletable, because a set is replaced"
   for (const table of [
     "test_privs.crew_specialty_links",
     "test_privs.crew_cultural_tags",
+    /*
+     * Saving a crew profile deletes this user's event history and re-inserts
+     * it, exactly like the two tables above -- and it does so on the
+     * application role, because a vendor editing their own profile is a user
+     * request (db.ts routes those through `app.asUser`).
+     *
+     * 007 created this table and was never added here. It granted DELETE only
+     * to the system role, reasoning that the save ran as system. It does not,
+     * so every vendor profile save failed with "permission denied for table
+     * crew_event_links" -- invisible to the rest of the suite, which connects
+     * as a superuser that no grant can refuse. It surfaced only when the
+     * booking flow was driven end to end against the restricted role.
+     */
+    "test_privs.crew_event_links",
     "test_privs.gig_cultural_tags",
     "test_privs.gig_languages",
   ]) {

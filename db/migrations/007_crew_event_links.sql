@@ -97,20 +97,26 @@ BEGIN
         target);
 
     /*
-     * DELETE for the system role only, and it is genuinely needed.
+     * DELETE for BOTH roles, because saving a profile replaces its links: the
+     * store deletes this user's rows and re-inserts them, the same shape it
+     * uses for crew_specialty_links and crew_cultural_tags -- both of which
+     * grant DELETE to the application role (003).
      *
-     * 004 revokes DELETE across the schema and grants it back on exactly the
-     * link tables, because saving a profile replaces its links -- the store
-     * deletes the rows for that user and re-inserts them, the same shape it
-     * uses for crew_specialty_links and crew_cultural_tags. Without this
-     * grant, a vendor removing a function from their list would get a
-     * permission error on save.
+     * This originally granted DELETE to the system role only and REVOKED it
+     * from the application role, on the reasoning that the save ran as system
+     * and the narrower credential was safer. The save does not run as system:
+     * a vendor editing their own profile is a user request, routed through
+     * `app.asUser`. So every profile save failed with "permission denied for
+     * table crew_event_links". 009 grants it for databases that already ran
+     * this; this block is corrected so a re-run -- 007 is documented as safe
+     * to re-run -- does not revoke it again.
      *
-     * The application role does not get it. It has no reason to delete a
-     * vendor's history, and the narrower the credential the API holds, the
-     * less an attacker with it can do.
+     * What this does NOT do is widen anything. Like crew_specialty_links and
+     * crew_cultural_tags, this table has no row-level security: the scoping to
+     * one vendor's rows is enforced by the application (the store deletes
+     * `WHERE user_id = $1`, the acting user), not by the database. Granting
+     * DELETE brings it level with its siblings -- the same trust, no more.
      */
-    EXECUTE format('GRANT DELETE ON %I.crew_event_links TO desi_nexus_system', target);
-    EXECUTE format('REVOKE DELETE ON %I.crew_event_links FROM desi_nexus_app', target);
+    EXECUTE format('GRANT DELETE ON %I.crew_event_links TO desi_nexus_app, desi_nexus_system', target);
 END
 $$;
